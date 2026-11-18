@@ -151,6 +151,13 @@ const ANIMS = {
   calfstep: { props: [{ k: 'step', x: 82, y: 88, w: 40 }], a: { hip: [80, 52.4], t: 180, fF: [81, 90.4, 'f'], fB: [80, 90.4, 'f'], tF: 110, tB: 110, aF: [5, 5], aB: [0, 0] }, b: { hip: [84.6, 43.4], t: 180, fF: [85.6, 81.4, 'f'], fB: [84.6, 81.4, 'f'], tF: 20, tB: 20 } },
   calffloor: { a: { hip: [80, 63], t: 180, fF: [81, 101, 'f'], fB: [92, 92, 'f'], tF: 90, tB: 120, aF: [5, 5], aB: [0, 0] }, b: { hip: [83.5, 56.9], t: 180, fF: [84.5, 94.9, 'f'], fB: [95.5, 86, 'f'], tF: 30 } },
   dips: { props: [{ k: 'chair', x: 72, y: 72, w: 24, back: 'r' }], a: { hip: [84, 71], t: 180, h: 0, hF: [86, 70, 'b'], hB: [84, 70, 'b'], fF: [114, 100, 'u'], fB: [113, 100, 'u'], tF: 170, tB: 170 }, b: { hip: [82, 86], t: 176 } },
+  /* Collo */
+  neckflex: { a: { hip: [66, 98], t: -88, h: 0, fF: [88, 101, 'u'], fB: [87, 101, 'u'], aF: [88, 90], aB: [86, 90] }, b: { h: -55 } },
+  neckext: { a: { hip: [60, 97], t: 90, h: -6, fF: [22, 99, 'u'], fB: [21, 99, 'u'], tF: 0, tB: 0, aF: [-88, -90], aB: [-86, -90] }, b: { h: 28 } },
+  neckiso: { hold: true, a: Object.assign({}, STAND, { h: 0, hF: [88, 21, 'd'], hB: [74, 62, 'b'] }), b: { h: 3 } },
+  neckisoback: { hold: true, a: Object.assign({}, STAND, { h: 0, hF: [72, 19, 'd'], hB: [71, 20, 'd'] }), b: { h: -3 } },
+  necksideiso: { hold: true, front: true, a: { hip: [80, 63], t: 180, h: 0, fF: [86, 101, 'f'], fB: [74, 101, 'b'], tF: 80, tB: -80, hF: [88, 20, 'f'], hB: [70, 62, 'b'] }, b: { h: -4 } },
+  shrug: { props: [{ k: 'pack', j: 'handF' }], a: Object.assign({}, STAND, { hF: [84, 62, 'b'], hB: [80, 62, 'b'] }), b: { hip: [80, 61.5], hF: [84, 57, 'b'], hB: [80, 57, 'b'] } },
   /* Riscaldamento e defaticamento */
   jacks: { front: true, a: { hip: [80, 63], t: 180, fF: [85, 101, 'f'], fB: [75, 101, 'b'], tF: 80, tB: -80, hF: [89, 63, 'f'], hB: [71, 63, 'b'] }, b: { hip: [80, 61], fF: [98, 101, 'f'], fB: [62, 101, 'b'], hF: [95, 8, 'f'], hB: [65, 8, 'b'] } },
   armcircle: { front: true, a: { hip: [80, 63], t: 180, fF: [86, 101, 'f'], fB: [74, 101, 'b'], tF: 80, tB: -80, hF: [116, 37, 'd'], hB: [44, 37, 'd'] }, b: { hF: [110, 14, 'd'], hB: [50, 14, 'd'] } },
@@ -179,7 +186,8 @@ const EX_ANIM = {
   hc_knee: 'hangknee', hc_leg: 'hangleg', hc_t2b: 't2b',
   cb_curl: 'curl', cbp_curl: 'curl_pack', rbd_row: 'bandrow', pd_band: 'pulldown', dp_chairs: 'dips', tb_ext: 'triext',
   ca_step: 'calfstep', cf_one: 'calffloor', lr_band: 'latraise', yr_prone: 'yraise', fp_band: 'facepull',
-  po_floor: 'pullover', pp_w: 'pronew', pp_slide: 'pronew'
+  po_floor: 'pullover', pp_w: 'pronew', pp_slide: 'pronew',
+  nf_lift: 'neckflex', nf_iso: 'neckiso', ne_prone: 'neckext', ne_iso: 'neckisoback', ns_iso: 'necksideiso', sh_bp: 'shrug'
 };
 
 /* Risolve le animazioni che ereditano da un'altra (base). */

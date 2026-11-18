@@ -5,7 +5,7 @@
 
 const KEY = 'leva.v2';
 const KEY_V1 = 'leva.v1';
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 
 function fresh() {
   return { v: 2, profile: null, prog: {}, sessions: [], weights: [], measures: [], active: null,
@@ -80,6 +80,7 @@ function sanitize(d) {
     p.name = String(p.name || '').slice(0, 30);
     p.height = inR(p.height, 120, 230, 175); p.weight = inR(p.weight, 30, 200, 70); p.goal = inR(p.goal, 30, 200, p.weight);
     p.avoid = p.avoid.filter((z) => STRESS[z]); p.excl = p.excl.filter((x) => EX[x]);
+    p.neck = !!p.neck;
     p.match = (Array.isArray(p.match) ? p.match : []).filter((x) => Number.isInteger(x) && x >= 0 && x <= 6);
     p.matchDates = Array.from(new Set((Array.isArray(p.matchDates) ? p.matchDates : []).filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))).sort().slice(-200);
     Object.keys(p.equip).forEach((k) => { if (!EQUIP[k]) delete p.equip[k]; else p.equip[k] = !!p.equip[k]; });

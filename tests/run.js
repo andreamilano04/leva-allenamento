@@ -105,6 +105,16 @@ test('Prima volta: obiettivo facile dentro il range', () => { eq(R('setTarget')(
 test('Volte successive: stesso obiettivo per tutte le serie (peggiore + 1), massimo del range', () => { eq(R('setTarget')([8, 15], '', [12, 11, 10, 9], 0), 10); eq(R('setTarget')([8, 15], '', [12, 11, 10, 9], 3), 10); eq(R('setTarget')([8, 15], '', [15, 15], 0), 15); eq(R('setTarget')([8, 15], '', [5], 0), 8); eq(R('setTarget')([8, 15], '', [12, null], 2), 13); eq(R('setTarget')([30, 60], 's', [40], 0), 45); });
 test('Frase semplice', () => { vm.runInContext("var plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);", ctx); eq(R('doTxt')(3, 10, '', true, 'squat'), '3 serie da 10 ripetizioni per gamba'); eq(R('doTxt')(3, 30, 's', false, 'core'), '3 serie da 30 secondi'); });
 
+console.log('\nRitmo e collo');
+test('Ogni esercizio ha un ritmo con fasi valide', () => { Object.keys(R('EX')).forEach((x) => { const ph = R('tempoPhases')(R('tempoOf')(x)); ok(ph.length >= 2 && ph.every((p) => p.s > 0), 'ritmo non valido: ' + x); ok(R('tempoTxt')(R('tempoOf')(x)).length > 5); }); });
+test('Testo del ritmo', () => { eq(R('tempoTxt')(R('tempoOf')('ph_classic')), 'Scendi in 2 s · spingi in 1 s'); eq(R('tempoTxt')(R('tempoOf')('rt_pause')), 'Tira in 1 s · tieni 2 s · torna in 3 s'); });
+test('Blocco collo solo se attivato, in fondo alla scheda', () => {
+  const p = profile(['backpack'], [0, 2, 4], 45); const no = prog(p).workouts[0].slots.map((s) => s.slot);
+  ok(no.every((x) => x[0] !== 'N'), 'collo presente senza attivarlo');
+  p.neck = true; const yes = prog(p).workouts[0].slots.map((s) => s.slot); eq(yes.slice(-4), ['N1', 'N2', 'N3', 'N4']);
+  p.equip.backpack = false; ok(prog(p).workouts[0].slots.every((s) => s.slot !== 'N4'), 'scrollate senza zaino');
+});
+
 console.log('\nIMC');
 test('IMC calcolato correttamente', () => { ok(Math.abs(R('bmi')(65.5, 175) - 21.39) < 0.01); });
 test('Fasce IMC', () => { eq(R('bmiCat')(18.4).n, 'Sottopeso'); eq(R('bmiCat')(18.5).n, 'Normopeso'); eq(R('bmiCat')(24.99).n, 'Normopeso'); eq(R('bmiCat')(25).n, 'Sovrappeso'); eq(R('bmiCat')(30).n, 'Obesità'); });

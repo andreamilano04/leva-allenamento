@@ -348,3 +348,52 @@ const COOLDOWN = [
   { id: 'cd_ham', n: 'Allungamento dei femorali', s: 40, a: 'hamstretch', d: 'Seduto a gambe tese, schiena lunga: piegati in avanti dalle anche verso i piedi.' },
   { id: 'cd_child', n: 'Posizione del bambino', s: 40, a: 'childpose', d: 'Seduto sui talloni, porta il busto in avanti e le braccia lunghe a terra. Respira lentamente.' }
 ];
+
+/* Ritmo di ogni ripetizione, in secondi. w = parole: push (scendi/spingi), pull (tira/torna), lift (sali/scendi).
+   e = fase lenta (ritorno/discesa), c = fase di sforzo, b = pausa in basso/esteso, t = pausa in alto/contratto. */
+const TEMPO_DEF = { push: { w: 'push', e: 2, c: 1, b: 0, t: 0 }, pull: { w: 'pull', e: 2, c: 1, b: 0, t: 1 }, lift: { w: 'lift', e: 2, c: 1, b: 0, t: 1 } };
+const TEMPO = {
+  push_h: 'push', push_v: 'push', tri_bw: 'push', dip: 'push', squat: 'push', lunge: 'push',
+  row: 'pull', row_bp: 'pull', row_band: 'pull', pulldown_band: 'pull', pull: 'pull', chin: 'pull', face_pull: 'pull', prone_pull: 'pull', pullover_bp: 'pull',
+  hinge: 'lift', glute_single: 'lift', curl_band: 'lift', curl_bp: 'lift', triceps: 'lift', calf: 'lift', calf_floor: 'lift', lat_raise: 'lift', y_raise: 'lift', hang_core: 'lift',
+  squat_tempo: { w: 'push', e: 3, c: 1, b: 0, t: 0 },
+  // eccezioni per singolo esercizio
+  st_bw: { w: 'push', e: 3, c: 1, b: 0, t: 0 }, st_bp: { w: 'push', e: 3, c: 1, b: 0, t: 0 }, tb_tempo: { w: 'push', e: 3, c: 1, b: 1, t: 0 },
+  rt_pause: { w: 'pull', e: 3, c: 1, b: 0, t: 2 }, rb_pause: { w: 'pull', e: 3, c: 1, b: 0, t: 2 },
+  hg_nordic_neg: { w: 'lift', e: 5, c: 2, b: 0, t: 0, neg: true }, pu_neg: { w: 'pull', e: 5, c: 2, b: 0, t: 0, neg: true }, ch_neg: { w: 'pull', e: 5, c: 2, b: 0, t: 0, neg: true },
+  pv_hspu_neg: { w: 'push', e: 5, c: 2, b: 0, t: 0, neg: true }, sq_pistol_box: { w: 'push', e: 3, c: 1, b: 0, t: 0 },
+  cb_curl: { w: 'lift', e: 3, c: 1, b: 0, t: 0 }, cbp_curl: { w: 'lift', e: 3, c: 1, b: 0, t: 0 }, lr_band: { w: 'lift', e: 3, c: 1, b: 0, t: 0 },
+  po_floor: { w: 'pull', e: 3, c: 2, b: 0, t: 0 }, ca_step: { w: 'lift', e: 2, c: 1, b: 1, t: 1 }, cf_one: { w: 'lift', e: 2, c: 1, b: 0, t: 1 },
+  neck_flex: { w: 'lift', e: 2, c: 2, b: 0, t: 1 }, neck_ext: { w: 'lift', e: 2, c: 2, b: 0, t: 1 }, shrug_bp: { w: 'lift', e: 2, c: 1, b: 0, t: 2 }
+};
+
+/* Blocco collo (facoltativo, a fine allenamento). Sempre lento e senza strappi. */
+MUSCLES.collo = 'Collo';
+MUSCLE_ORDER.push('collo');
+Object.assign(LADDERS, {
+  neck_flex: { name: 'Collo: flessione', m: 'collo', s: [], lv: [
+    { id: 'nf_lift', n: 'Sollevamento della testa da supino', eq: [], r: [10, 20], pre: 'Parti con poche ripetizioni lente: il collo si affatica in fretta. Fermati se senti dolore o giramenti di testa.', d: 'Sdraiato a pancia in su, ginocchia piegate. Porta il mento verso il petto e solleva la testa di pochi centimetri, poi riappoggiala lentamente.',
+      how: ['Supino, ginocchia piegate, braccia lungo i fianchi.', 'Mento leggermente verso il petto.', 'Solleva la testa di 3–5 cm in 2 secondi, tieni 1 secondo, scendi in 2.'], err: ['Sollevare anche le spalle.', 'Movimenti veloci o a scatti.'] },
+    { id: 'nf_iso', n: 'Isometria in avanti con la mano', eq: [], u: 's', r: [15, 30], d: 'Mano sulla fronte: spingi la testa in avanti contro la mano, senza che la testa si muova. Forza moderata.',
+      how: ['Seduto o in piedi, schiena dritta.', 'Palmo sulla fronte.', 'Spingi la testa contro la mano al 50–70% della forza, respira normalmente.'], err: ['Spingere al massimo dal primo giorno.', 'Trattenere il respiro.'] } ] },
+  neck_ext: { name: 'Collo: estensione', m: 'collo', s: [], lv: [
+    { id: 'ne_prone', n: 'Estensione del collo da prono', eq: [], r: [10, 20], d: 'A pancia in giù, fronte appoggiata. Solleva la testa guardando il pavimento, fino a portarla in linea con la schiena, poi riappoggiala.',
+      how: ['Prono, fronte su un asciugamano.', 'Solleva la testa in 2 secondi, sguardo verso il pavimento.', 'Tieni 1 secondo e riappoggia in 2.'], err: ['Guardare in alto piegando troppo il collo.', 'Sollevare il petto.'] },
+    { id: 'ne_iso', n: 'Isometria indietro con la mano', eq: [], u: 's', r: [15, 30], d: 'Mani dietro la testa: spingi la testa indietro contro le mani, senza muoverla. Forza moderata.',
+      how: ['Seduto o in piedi, mento leggermente rientrato.', 'Mani intrecciate dietro la testa.', 'Spingi indietro al 50–70% della forza, respira.'], err: ['Inarcare la schiena.', 'Spingere con troppa forza.'] } ] },
+  neck_side: { name: 'Collo: laterale', m: 'collo', s: [], lv: [
+    { id: 'ns_iso', n: 'Isometria laterale con la mano', eq: [], u: 's', r: [15, 30], d: 'Mano sulla tempia: spingi la testa di lato contro la mano, senza muoverla. Poi dall’altro lato.',
+      how: ['Seduto o in piedi, spalle rilassate.', 'Palmo sulla tempia destra.', 'Spingi la testa verso la mano al 50–70% della forza; poi cambia lato.'], err: ['Alzare la spalla.', 'Ruotare la testa.'] } ] },
+  shrug_bp: { name: 'Scrollate di spalle', m: 'collo', s: ['dor'], lv: [
+    { id: 'sh_bp', n: 'Scrollate di spalle con zaino', eq: ['backpack'], r: [12, 20], d: 'In piedi, zaino in mano a braccia tese. Porta le spalle verso le orecchie, tieni 2 secondi e scendi lentamente. Allena il trapezio, che sostiene il collo.',
+      how: ['In piedi, zaino tenuto davanti con le braccia tese.', 'Solleva le spalle verso le orecchie senza piegare i gomiti.', 'Tieni 2 secondi in alto e scendi in 2.'], err: ['Ruotare le spalle.', 'Piegare le braccia.'] } ] }
+});
+['neck_flex', 'neck_ext', 'neck_side', 'shrug_bp'].forEach((k) => LADDERS[k].lv.forEach((lv, i) => {
+  EX[lv.id] = { id: lv.id, l: k, i: i, n: lv.n, d: lv.d, how: lv.how || [], err: lv.err || [], eq: lv.eq || [], r: lv.r || null, u: lv.u || LADDERS[k].u || '', pre: lv.pre || '', st: lv.st || [], m: lv.m || LADDERS[k].m, s: lv.s || LADDERS[k].s || [] };
+}));
+const NECK_SLOTS = [
+  { id: 'N1', l: 'neck_flex', start: 'nf_lift', sets: 2, r: [10, 20], rest: 45, pri: 2 },
+  { id: 'N2', l: 'neck_ext', start: 'ne_prone', sets: 2, r: [10, 20], rest: 45, pri: 2 },
+  { id: 'N3', l: 'neck_side', sets: 2, r: [15, 30], rest: 30, side: true, pri: 2 },
+  { id: 'N4', l: 'shrug_bp', sets: 2, r: [12, 20], rest: 45, pri: 2 }
+];

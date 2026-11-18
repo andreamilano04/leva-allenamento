@@ -122,6 +122,7 @@ function resolveWorkout(wid, p, st) {
   const used = {};
   let slots = W.slots.map((s) => { const r = resolveSlot(s, p, st, wid, used); if (r) used[r.l] = 1; return r; }).filter(Boolean);
   slots = fitDuration(slots, p.dur, locked);
+  if (p.neck) NECK_SLOTS.forEach((ns) => { const r = resolveSlot(ns, p, st, wid, used); if (r) { r.neck = true; used[r.l] = 1; slots.push(r); } });
   slots.forEach((s) => { s.baseSets = s.sets; });
   const mus = {}; slots.forEach((s) => { mus[EX[s.x].m] = 1; });
   return { wid: wid, name: W.name, slots: slots, min: estMin(slots), sets: slots.reduce((t, s) => t + s.sets, 0),
@@ -354,3 +355,28 @@ function doTxt(n, t, u, side, l) {
   const sideTxt = side ? (['squat', 'lunge', 'hinge', 'glute_single', 'calf', 'calf_floor', 'squat_tempo'].indexOf(l) >= 0 ? ' per gamba' : ' per lato') : '';
   return plural(n, 'serie', 'serie') + ' da ' + what + sideTxt;
 }
+
+/* ---------- Ritmo delle ripetizioni ---------- */
+function tempoOf(x) {
+  const e = EX[x]; const v = TEMPO[x] || TEMPO[e.l] || 'push';
+  return typeof v === 'string' ? TEMPO_DEF[v] : v;
+}
+/* Fasi di una ripetizione nell'ordine in cui si fanno. */
+function tempoPhases(tp) {
+  const W = { push: ['Scendi', 'Spingi'], pull: ['Torna', 'Tira'], lift: ['Scendi', 'Sali'] }[tp.w];
+  const ecc = { n: W[0], s: tp.e, k: 'e' }, con = { n: W[1], s: tp.c, k: 'c' };
+  const ph = tp.w === 'push' ? [ecc, tp.b ? { n: 'Tieni', s: tp.b, k: 'h' } : null, con, tp.t ? { n: 'Tieni', s: tp.t, k: 'h' } : null]
+    : [con, tp.t ? { n: 'Tieni', s: tp.t, k: 'h' } : null, ecc, tp.b ? { n: 'Tieni', s: tp.b, k: 'h' } : null];
+  return ph.filter((p) => p && p.s > 0);
+}
+function tempoTxt(tp) {
+  if (tp.neg) return 'Fase lenta in ' + tp.e + ' secondi, il più controllata possibile; poi torna su aiutandoti';
+  return tempoPhases(tp).map((p) => p.n.toLowerCase() + (p.n === 'Tieni' ? ' ' + p.s + ' s' : ' in ' + p.s + ' s')).join(' · ').replace(/^./, (c) => c.toUpperCase());
+}
+/* Come eseguire in base all'obiettivo. */
+const GOAL_HOW = {
+  hyp: 'Per la massa: movimento controllato, l’ultima ripetizione deve essere impegnativa ma con 1–2 ripetizioni ancora in serbo.',
+  str: 'Per la forza: tecnica perfetta, spinta decisa e discesa controllata; recupera completamente tra le serie.',
+  end: 'Per la resistenza: ritmo costante, senza fermarti tra una ripetizione e l’altra.',
+  fit: 'Movimento controllato e respiro regolare: espira nella fase di sforzo.'
+};

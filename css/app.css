@@ -360,6 +360,17 @@ body.full #tabbar{display:none}
 /* Sessione: cosa fare, serie corrente */
 .todo{background:var(--s1);border:1.5px solid var(--acd2);border-radius:var(--r);padding:16px 18px;margin-top:14px}
 .todo-main{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:6px 0 10px;line-height:1.2}
+.todo-rows{display:flex;flex-direction:column;gap:8px;margin-top:4px;font-size:14px;color:var(--tx2)}
+.todo-rows>div{display:flex;gap:9px;align-items:flex-start}
+.todo-rows span{flex:none;width:22px;height:22px;border-radius:50%;background:var(--acd);color:var(--ac);display:grid;place-items:center;margin-top:-1px}
+.todo-rows span svg{width:12px;height:12px}
+.todo-rows b{color:var(--tx)}
+.tphase{font-size:52px;font-weight:800;letter-spacing:-.03em;color:var(--ac);line-height:1;margin:6px 0 14px;text-transform:uppercase}
+.tphase.h{color:var(--tx)}.tphase.e{color:#9DC22E}
+.tbar{width:100%;height:10px;border-radius:99px;background:var(--s3);overflow:hidden;margin-bottom:20px}
+.tbar i{display:block;height:100%;background:var(--ac);border-radius:99px}
+.tcount{font-size:64px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.04em;line-height:1}
+.tcount small{font-size:22px;color:var(--mu);font-weight:500}
 .todo-list{margin:0;padding-left:18px;font-size:14px;color:var(--tx2);display:flex;flex-direction:column;gap:6px}
 .todo-list b{color:var(--tx)}
 .now{background:linear-gradient(160deg,#1C2210,#151517 70%);border:1px solid rgba(196,240,58,.25);border-radius:var(--r);padding:18px;margin-top:12px}

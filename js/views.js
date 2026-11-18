@@ -119,7 +119,7 @@ function vPlan() {
   const ms = muscleSets(pr); const zone = p.obj === 'end' ? [8, 16] : p.obj === 'str' ? [6, 14] : [10, 20];
   const maxv = Math.max(24, Math.max.apply(null, MUSCLE_ORDER.map((k) => ms[k])));
   h += '<div class="sec-h"><h3>Serie a settimana per muscolo</h3></div><section class="card">' +
-    MUSCLE_ORDER.map((k) => { const v = ms[k]; const w = clamp(v / maxv * 100, 0, 100); const lo = v < zone[0] && ['pol', 'core', 'fem'].indexOf(k) < 0;
+    MUSCLE_ORDER.filter((k) => k !== 'collo' || ms[k] > 0).map((k) => { const v = ms[k]; const w = clamp(v / maxv * 100, 0, 100); const lo = v < zone[0] && ['pol', 'core', 'fem', 'collo'].indexOf(k) < 0;
       return '<div class="mus"><span>' + MUSCLES[k] + '</span><span class="track"><span class="zone" style="left:' + (zone[0] / maxv * 100) + '%;width:' + ((zone[1] - zone[0]) / maxv * 100) + '%"></span><i class="' + (lo ? 'lo' : '') + '" style="width:' + w + '%"></i></span><b>' + fmtSets(v) + '</b></div>'; }).join('') +
     '<p class="muted tiny" style="margin-top:10px">Serie dirette = 1, serie in cui il muscolo aiuta = ½. La fascia chiara indica il volume tipico per ' + esc(GOALS[p.obj].n.toLowerCase()) + ' (' + zone[0] + '–' + zone[1] + ' serie). Polpacci, femorali e core lavorano anche negli esercizi multiarticolari.</p></section>';
   const p0 = p.equip; const missing = EQUIP_ORDER.filter((k) => !p0[k]).map((k) => EQUIP[k].n.toLowerCase());
@@ -315,7 +315,8 @@ function vProfile() {
   h += '<div class="sec-h"><h3>Allenamento</h3></div><section class="card">' +
     '<div class="field"><label>Obiettivo</label>' + seg('pObj', Object.keys(GOALS).map((k) => [k, GOALS[k].n.split(' ')[0] === 'Massa' ? 'Massa' : GOALS[k].n.split(' ')[0]]), d.obj, 'pPick') + '<p class="muted tiny" style="margin:8px 4px 0">' + esc(GOALS[d.obj].d) + '</p></div>' +
     '<div class="field"><label>Livello</label>' + seg('pLevel', Object.keys(LEVELS).map((k) => [k, LEVELS[k]]), d.level, 'pPick') + '</div>' +
-    '<div class="field" style="margin-bottom:0"><label>Durata per allenamento</label>' + seg('pDur', [[30, '30 min'], [45, '45 min'], [60, '60 min']], d.dur, 'pPick') + '</div></section>' +
+    '<div class="field"><label>Durata per allenamento</label>' + seg('pDur', [[30, '30 min'], [45, '45 min'], [60, '60 min']], d.dur, 'pPick') + '</div>' +
+    toggle('pNeck', !!d.neck, 'Allena anche il collo', 'Circa 6 minuti alla fine di ogni allenamento', 'pNeck') + '</section>' +
     '<button class="item" data-a="tab" data-v="cal"><span class="letter">' + ICON.cal + '</span><div class="f"><div class="t">Calendario: allenamenti e partite</div><div class="s">' + d.wdays.map((i) => WD[i]).join(', ') + ' · ' + plural(((d.matchDates || []).filter((x) => x >= today())).length, 'partita in programma', 'partite in programma') + '</div></div><span class="chev">' + ICON.chevR + '</span></button>';
   h += '<div class="sec-h"><h3>Attrezzatura</h3></div><section class="card">' + EQUIP_ORDER.map((k) => toggle('eq_' + k, d.equip[k], EQUIP[k].n, EQUIP[k].d, 'pEq')).join('') + '</section>';
   h += '<div class="sec-h"><h3>Zone da proteggere</h3></div><section class="card"><p class="muted small" style="margin-bottom:12px">Gli esercizi che le sollecitano molto vengono sostituiti.</p><div class="tags">' + Object.keys(STRESS).map((k) => '<button class="pill ' + (d.avoid.indexOf(k) >= 0 ? 'on' : '') + '" data-a="pAvoid" data-v="' + k + '">' + STRESS[k] + '</button>').join('') + '</div>' +
@@ -391,7 +392,12 @@ function vSession() {
   // Cosa devi fare (in breve)
   const t0 = tg(e.sets[cur >= 0 ? cur : 0]);
   const restTxt = e.rest >= 60 && e.rest % 60 === 0 ? (e.rest / 60) + (e.rest === 60 ? ' minuto' : ' minuti') : e.rest + ' secondi';
-  h += '<section class="todo"><div class="eyebrow" style="color:var(--ac)">Cosa devi fare</div><div class="todo-main">' + esc(doTxt(n, t0, u, e.side, x.l)) + '</div><div class="muted small">Riposo ' + restTxt + ' tra le serie · il timer parte da solo</div></section>';
+  const tp = tempoOf(e.x); const lastEx = a.idx === a.ex.length - 1;
+  h += '<section class="todo"><div class="eyebrow" style="color:var(--ac)">' + (e.neck ? 'Collo · ' : '') + 'Cosa devi fare</div><div class="todo-main">' + esc(doTxt(n, t0, u, e.side, x.l)) + '</div>' +
+    '<div class="todo-rows">' +
+    (u === 's' ? '<div><span>' + ICON.clock + '</span><b>Tieni la posizione</b> per il tempo indicato, respirando normalmente</div>' : '<div><span>' + ICON.repeat + '</span><b>Ritmo:</b> ' + esc(tempoTxt(tp)) + '</div>') +
+    '<div><span>' + ICON.pause + '</span><b>Riposo:</b> ' + restTxt + ' tra una serie e l’altra' + (lastEx ? '' : ', poi passi al prossimo esercizio') + '</div>' +
+    '<div><span>' + ICON.target + '</span>' + esc(e.neck ? 'Collo: forza moderata, movimenti lenti. Fermati subito se senti dolore o giramenti di testa.' : GOAL_HOW[S.profile.obj] || GOAL_HOW.hyp) + '</div></div></section>';
   if (e.adapt) h += '<p class="adapt">' + esc(e.adapt) + '</p>';
 
   // Serie corrente
@@ -399,7 +405,7 @@ function vSession() {
     const s = e.sets[cur];
     h += '<section class="now"><div class="now-h"><span class="eyebrow">Serie ' + (cur + 1) + ' di ' + n + '</span><span class="sdots">' + e.sets.map((q, k) => '<i class="' + (q.done ? 'on' : k === cur ? 'cur' : '') + '"></i>').join('') + '</span></div>' +
       '<div class="now-goal">' + (u === 's' ? 'Tieni <b>' + tg(s) + '</b> secondi' : 'Fai <b>' + tg(s) + '</b> ripetizioni') + (e.side ? ' <span>per ' + sideWord + '</span>' : '') + '</div>' +
-      (u === 's' ? '<button class="btn black-ac" data-a="holdStart" data-s="' + cur + '">' + ICON.play + 'Avvia il timer</button><div class="sp10"></div>' : '') +
+      (u === 's' ? '<button class="btn black-ac" data-a="holdStart" data-s="' + cur + '">' + ICON.play + 'Avvia il timer</button><div class="sp10"></div>' : (tp.neg ? '' : '<button class="btn black-ac" data-a="tempoStart" data-s="' + cur + '">' + ICON.play + 'Guidami il ritmo</button><div class="sp10"></div>')) +
       '<div class="now-adj"><span class="muted small">' + (u === 's' ? 'Secondi fatti' : 'Quante ne hai fatte?') + '</span><div class="stepper" style="flex:none"><button data-a="step" data-s="' + cur + '" data-v="-1" aria-label="Meno">' + ICON.minus + '</button><span class="v">' + s.v + '</span><button data-a="step" data-s="' + cur + '" data-v="1" aria-label="Più">' + ICON.plus + '</button></div></div>' +
       '<button class="btn primary big" data-a="setDone" data-s="' + cur + '">' + ICON.check + 'Serie fatta' + (s.v !== tg(s) ? ' · ' + s.v + (u === 's' ? ' s' : ' rip') : '') + '</button></section>';
   } else {
@@ -427,7 +433,7 @@ function vSession() {
       '<button class="btn ghost xs f" data-a="lvl" data-v="-1" ' + (prev ? '' : 'disabled') + '>' + ICON.down + 'Più facile</button><span class="tag">Livello ' + (x.i + 1) + ' di ' + ids.length + '</span>' +
       '<button class="btn ghost xs f" data-a="lvl" data-v="1" ' + (next ? '' : 'disabled') + '>' + ICON.up + 'Più difficile</button></div></section>';
   }
-  const lastEx = a.idx === a.ex.length - 1;
+
   h += '<div class="foot"><div class="in">' + (a.idx > 0 ? '<button class="btn ghost" data-a="exNav" data-v="-1" aria-label="Esercizio precedente">' + ICON.chevL + '</button>' : '') +
     (lastEx ? '<button class="btn ' + (cur >= 0 ? 'ghost' : 'primary') + '" data-a="finishAsk">' + ICON.check + 'Termina allenamento</button>' : '<button class="btn ' + (cur >= 0 ? 'ghost' : 'primary') + '" data-a="exNav" data-v="1">Prossimo esercizio' + ICON.chevR + '</button>') + '</div></div>';
   return h;

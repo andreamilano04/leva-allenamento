@@ -29,6 +29,8 @@ Web app installabile (PWA) per allenarsi a casa a corpo libero: crea un programm
 - Ogni esercizio ha un'animazione in loop: un omino SVG con cinematica inversa, funziona anche offline.
 - Durante l'allenamento: "da battere" (risultato dell'ultima volta), timer di recupero ad anello, RIR facoltativo, cronometro per gli esercizi a tempo, peso dello zaino, pausa e ripresa anche dopo la chiusura dell'app.
 - Guida vocale: conto alla rovescia e nome del prossimo esercizio.
+- Per ogni esercizio: serie, ripetizioni, ritmo di ogni ripetizione (es. «scendi in 2 s · spingi in 1 s»), riposo e come eseguirlo per il proprio obiettivo; «Guidami il ritmo» scandisce le ripetizioni con voce e segnali.
+- Blocco facoltativo per il collo (flessione, estensione, isometrie laterali, scrollate) a fine allenamento.
 - Adattamento alla giornata: energia, gambe stanche e giorni vicini alle partite.
 
 **Progressione**

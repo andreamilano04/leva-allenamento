@@ -68,6 +68,10 @@ function say(text) {
     speechSynthesis.speak(u); return true;
   } catch (e) { return false; }
 }
+function tone(f, d) {
+  if (!actx || !S.settings.sound) return;
+  try { const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + (d || 0.12)); o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + (d || 0.12) + 0.02); } catch (e) {}
+}
 function buzz(p) { try { if (S.settings.vibrate && navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 let wake = null;
 async function keepAwake(on) {
@@ -97,6 +101,11 @@ function openOv(o) {
     h = '<div class="done-ic" style="width:76px;height:76px;margin:0 auto 18px">' + ICON.check + '</div><h2 class="center">Ultima serie fatta!</h2>' + rirBox(o.ei, o.si) + '<button class="btn primary" data-a="finishFromOv">Termina allenamento</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Rivedi le serie</button>';
   } else if (o.mode === 'hold') {
     h = '<div class="eyebrow">Tieni la posizione</div><div class="ring">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">0</b><span>obiettivo ' + o.target + ' s</span></div></div><div class="nexttx">' + esc(EX[S.active.ex[o.ei].x].n) + '</div><div class="sp24"></div><button class="btn primary" data-a="holdStop">' + ICON.stop + 'Stop e registra</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
+  } else if (o.mode === 'tempo') {
+    h = '<div class="eyebrow" id="tSub">Preparati</div><div class="tphase" id="tPh">3</div><div class="tbar"><i id="tBar" style="width:0"></i></div>' +
+      '<div class="tcount" id="tCnt">0<small>/' + o.target + '</small></div><div class="muted small" id="tSide" style="margin:6px 0 26px">' + (o.side ? 'lato 1 di 2' : 'ripetizioni') + '</div>' +
+      '<div class="nexttx" style="margin-bottom:22px;font-size:16px">' + esc(EX[S.active.ex[o.ei].x].n) + '</div>' +
+      '<button class="btn primary" data-a="tempoStop">' + ICON.check + 'Ho finito la serie</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'pause') {
     h = '<div class="letter" style="width:76px;height:76px;border-radius:50%;margin-bottom:18px">' + ICON.pause + '</div><h2>In pausa</h2><p class="muted center" style="margin:8px 0 26px">Il tempo dell’allenamento è fermo. I dati sono salvati: puoi anche chiudere l’app.</p><div class="clock" id="ovT" style="font-size:40px;margin-bottom:26px">0:00</div><button class="btn primary" data-a="unpause">' + ICON.play + 'Riprendi</button>';
   }
@@ -118,6 +127,8 @@ function tickOv() {
     if (t) t.textContent = el;
     if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - Math.min(1, el / ov.target))).toFixed(1));
     if (el >= ov.target && !ov.beeped) { ov.beeped = true; buzz([200]); if (!say('Tempo!')) beep(2); }
+  } else if (ov.mode === 'tempo') {
+    tempoTick();
   } else if (ov.mode === 'pause') {
     if (t && S.active && S.active.pausedAt) t.textContent = mmss((Date.now() - S.active.pausedAt) / 1000);
   }
@@ -176,6 +187,41 @@ function endMain() {
   if (any && S.settings.cool !== false) rtBegin('cool'); else finishSession();
 }
 
+/* ---------- Ritmo guidato ----------
+   3 secondi di preparazione, poi ogni ripetizione scandita fase per fase.
+   Per gli esercizi per lato: prima un lato, poi "cambia lato", poi l'altro. */
+function tempoState() {
+  const o = ov; const rep = o.ph.reduce((t, p) => t + p.s, 0);
+  const el = (Date.now() - o.start) / 1000 - 3; const per = o.target; const tot = per * (o.side ? 2 : 1);
+  if (el < 0) return { pre: Math.ceil(-el) };
+  const gap = o.side ? 3 : 0; // pausa per cambiare lato
+  let t = el, sideIdx = 0;
+  if (o.side && t >= per * rep) { t -= per * rep; if (t < gap) return { change: true, done: per, sideIdx: 1 }; t -= gap; sideIdx = 1; }
+  const r = Math.floor(t / rep); if (sideIdx * per + r >= tot || r >= per) return { end: true };
+  let w = t - r * rep, i = 0; while (w >= o.ph[i].s) { w -= o.ph[i].s; i++; }
+  return { rep: r, ph: i, frac: w / o.ph[i].s, sideIdx: sideIdx };
+}
+function tempoTick() {
+  const o = ov; const st = tempoState(); const P = (id) => document.getElementById(id);
+  if (st.pre) { if (o.last !== 'pre' + st.pre) { o.last = 'pre' + st.pre; if (!say(String(st.pre))) tone(660); } P('tPh').textContent = st.pre; return; }
+  if (st.end) { tempoFinish(o.target); return; }
+  if (st.change) { if (o.last !== 'chg') { o.last = 'chg'; if (!say('Cambia lato')) tone(440, 0.3); } P('tPh').textContent = 'Cambia'; P('tPh').className = 'tphase h'; P('tSub').textContent = 'Cambia lato'; P('tCnt').innerHTML = '0<small>/' + o.target + '</small>'; P('tSide').textContent = 'lato 2 di 2'; return; }
+  const p = o.ph[st.ph]; const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
+  if (o.last !== key) {
+    o.last = key; o.cnt = st.rep + (st.sideIdx ? 0 : 0); o.side2 = st.sideIdx;
+    if (st.ph === 0) { if (!say(String(st.rep + 1))) tone(880); } else tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.08);
+  }
+  P('tPh').textContent = p.n; P('tPh').className = 'tphase ' + p.k; P('tSub').textContent = 'Ripetizione ' + (st.rep + 1);
+  P('tBar').style.width = (st.frac * 100).toFixed(1) + '%';
+  P('tCnt').innerHTML = st.rep + '<small>/' + o.target + '</small>';
+  if (o.side) P('tSide').textContent = 'lato ' + (st.sideIdx + 1) + ' di 2';
+}
+function tempoFinish(v) {
+  const o = ov; if (!o) return; closeOv();
+  const s = S.active.ex[o.ei].sets[o.si]; s.v = Math.max(0, v); s.done = true; save(); render();
+  say('Serie finita'); startRest(o.ei, o.si);
+}
+
 /* ---------- Sessione ---------- */
 const LEGS = ['qua', 'fem', 'glu', 'pol'];
 function startSession(wid, check) {
@@ -188,9 +234,9 @@ function startSession(wid, check) {
     if (check.legs && LEGS.indexOf(EX[s.x].m) >= 0 && n >= 3) { n -= 1; notes.push(check.match ? 'partita ' + check.match : 'gambe stanche'); }
     if (deload && n >= 3) { n -= 1; notes.push('settimana di scarico'); }
     const pr = S.prog[s.key]; const last = pr && pr.id === s.x && pr.last ? pr.last : null;
-    return { slot: s.slot, id: s.id, key: s.key, l: s.l, x: s.x, r: s.r, rSlot: s.rSlot, rest: s.rest, side: s.side, note: s.note, u: s.u,
+    return { slot: s.slot, id: s.id, key: s.key, l: s.l, x: s.x, r: s.r, rSlot: s.rSlot, rest: s.rest, side: s.side, note: s.note, u: s.u, neck: !!s.neck,
       load: pr && pr.load ? pr.load : null, adapt: notes.length ? 'Adattato oggi: ' + plural(s.sets - n, 'serie', 'serie') + ' in meno (' + notes.join(', ') + ')' : '',
-      sets: Array.from({ length: n }, (_, k) => { const tg = setTarget(s.r, s.u, last, k); return { v: tg, t: tg, done: false, rir: null }; }) };
+      sets: Array.from({ length: n }, (_, k) => { const tg = s.neck && !last ? s.r[0] : setTarget(s.r, s.u, last, k); return { v: tg, t: tg, done: false, rir: null }; }) };
   });
   S.active = { wid: wid, wname: W.name, start: Date.now(), pausedMs: 0, pausedAt: null, idx: 0, check: check, ex: ex, timer: null, deload: deload, phase: 'main', rt: null };
   save(); keepAwake(true); closeSheet(); go('session');
@@ -314,6 +360,18 @@ const A = {
   ovClose: () => { closeOv(); render(); },
   finishFromOv: () => { closeOv(); endMain(); },
   holdStart: (t) => { ensureAudio(); const e = curEx(); const i = +t.dataset.s; openOv({ mode: 'hold', start: Date.now(), target: Math.max(5, e.sets[i].v), ei: S.active.idx, si: i }); },
+  tempoStart: (t) => {
+    ensureAudio(); const e = curEx(); const i = +t.dataset.s; const s = e.sets[i];
+    openOv({ mode: 'tempo', start: Date.now(), ei: S.active.idx, si: i, target: s.t != null ? s.t : s.v, side: !!e.side, ph: tempoPhases(tempoOf(e.x)) });
+  },
+  tempoStop: () => {
+    if (!ov || ov.mode !== 'tempo') return; const st = tempoState();
+    const done = st.pre ? 0 : st.end ? ov.target : st.change ? ov.target : (ov.side && st.sideIdx === 0 ? st.rep : st.rep);
+    if (st.pre) { closeOv(); render(); return; }
+    tempoFinish(done);
+  },
+  pNeck: () => { S.profile.neck = !S.profile.neck; commitProfile(true); },
+  holdStart_unused: null,
   holdStop: () => {
     if (!ov || ov.mode !== 'hold') return; const o = ov; const el = Math.round((Date.now() - o.start) / 1000);
     closeOv(); if (el < 2) { render(); return; }
