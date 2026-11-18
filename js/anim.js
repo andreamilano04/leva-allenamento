@@ -89,15 +89,49 @@ function propSvg(pr, J) {
 }
 
 /* ---------- Disegno della figura ---------- */
-function figureSvg(J, front) {
-  const W = { ua: 6.4, fa: 5.6, th: 8.6, sh: 7, foot: 4.6 };
-  const limb = (s, c) => line(J['shr' + s], J['elbow' + s], W.ua, c) + line(J['elbow' + s], J['hand' + s], W.fa, c);
-  const leg = (s, c) => line(J['hipr' + s], J['knee' + s], W.th, c) + line(J['knee' + s], J['ankle' + s], W.sh, c) + line(J['ankle' + s], J['toe' + s], W.foot, c);
-  const tor = front ? line([J.sh[0], J.sh[1] + 3], J.hip, 15, C_NEAR) + line(J.shrF, J.shrB, 7, C_NEAR) + line(J.hiprF, J.hiprB, 9, C_NEAR) : line(J.sh, J.hip, 12.5, C_NEAR);
-  const neck = line(J.sh, add(J.sh, [(J.head[0] - J.sh[0]) / BODY.neck, (J.head[1] - J.sh[1]) / BODY.neck], 4), 4.5, C_NEAR);
-  const head = '<circle cx="' + J.head[0].toFixed(1) + '" cy="' + J.head[1].toFixed(1) + '" r="' + BODY.head + '" fill="' + C_NEAR + '"/>';
-  if (front) return leg('B', C_NEAR) + leg('F', C_NEAR) + tor + neck + head + limb('B', C_NEAR) + limb('F', C_NEAR);
-  return limb('B', C_FAR) + leg('B', C_FAR) + tor + neck + head + leg('F', C_NEAR) + limb('F', C_NEAR);
+/* Segmento affusolato (capsula): da a (larghezza wa) a b (larghezza wb). */
+function capsule(a, b, wa, wb, c) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; const nx = -dy / l, ny = dx / l;
+  const p = (q, w, s) => (q[0] + nx * w / 2 * s).toFixed(1) + ' ' + (q[1] + ny * w / 2 * s).toFixed(1);
+  return '<path d="M' + p(a, wa, 1) + ' L' + p(b, wb, 1) + ' L' + p(b, wb, -1) + ' L' + p(a, wa, -1) + 'Z" fill="' + c + '"/>' +
+    '<circle cx="' + a[0].toFixed(1) + '" cy="' + a[1].toFixed(1) + '" r="' + (wa / 2).toFixed(1) + '" fill="' + c + '"/><circle cx="' + b[0].toFixed(1) + '" cy="' + b[1].toFixed(1) + '" r="' + (wb / 2).toFixed(1) + '" fill="' + c + '"/>';
+}
+/* Muscolo allenato → parti da evidenziare in verde. */
+const HL_PARTS = { pet: ['chest'], dor: ['back'], core: ['torso'], spa: ['delt'], bic: ['ua'], tri: ['ua'], qua: ['th'], fem: ['th'], glu: ['glute'], pol: ['sh'], collo: ['neck'] };
+function figureSvg(J, front, hl) {
+  const parts = HL_PARTS[hl] || [];
+  const NEAR = '#ECECEF', FAR = '#83838B', HN = '#C4F03A', HF = '#86A52A';
+  const col = (part, near) => (parts.indexOf(part) >= 0 ? (near ? HN : HF) : (near ? NEAR : FAR));
+  const leg = (s, near) => capsule(J['hipr' + s], J['knee' + s], 10, 7.6, col('th', near)) + capsule(J['knee' + s], J['ankle' + s], 7.4, 5.2, col('sh', near)) + capsule(J['ankle' + s], J['toe' + s], 5, 3.6, near ? NEAR : FAR);
+  const arm = (s, near) => capsule(J['shr' + s], J['elbow' + s], 7.2, 5.6, col('ua', near)) + capsule(J['elbow' + s], J['hand' + s], 5.4, 4.2, near ? NEAR : FAR) +
+    '<circle cx="' + J['hand' + s][0].toFixed(1) + '" cy="' + J['hand' + s][1].toFixed(1) + '" r="3.1" fill="' + (near ? NEAR : FAR) + '"/>';
+  // collo e testa, con il "naso" che indica dove guarda la figura
+  const nd = [(J.head[0] - J.sh[0]) / BODY.neck, (J.head[1] - J.sh[1]) / BODY.neck];
+  const face = front ? [0, 0] : [-nd[1], nd[0]];
+  const neck = capsule(J.sh, add(J.sh, nd, 5.5), 5.4, 4.6, col('neck', true));
+  const head = '<circle cx="' + J.head[0].toFixed(1) + '" cy="' + J.head[1].toFixed(1) + '" r="7" fill="' + NEAR + '"/>' +
+    (front ? '' : '<circle cx="' + (J.head[0] + face[0] * 6.3 + nd[0] * 0.5).toFixed(1) + '" cy="' + (J.head[1] + face[1] * 6.3 + nd[1] * 0.5).toFixed(1) + '" r="1.9" fill="' + NEAR + '"/>') +
+    '<circle cx="' + (J.head[0] - face[0] * 2 + nd[0] * 2.6).toFixed(1) + '" cy="' + (J.head[1] - face[1] * 2 + nd[1] * 2.6).toFixed(1) + '" r="4.6" fill="#55555C" opacity=".55"/>';
+  let torso;
+  if (front) {
+    const c = parts.length && ['chest', 'back', 'torso'].some((q) => parts.indexOf(q) >= 0) ? HN : NEAR;
+    torso = '<path d="M' + J.shrF[0].toFixed(1) + ' ' + (J.shrF[1] - 2).toFixed(1) + ' L' + J.shrB[0].toFixed(1) + ' ' + (J.shrB[1] - 2).toFixed(1) + ' L' + (J.hiprB[0] - 1).toFixed(1) + ' ' + (J.hiprB[1] + 2).toFixed(1) + ' L' + (J.hiprF[0] + 1).toFixed(1) + ' ' + (J.hiprF[1] + 2).toFixed(1) + 'Z" fill="' + c + '" stroke="' + c + '" stroke-width="5" stroke-linejoin="round"/>' +
+      (parts.indexOf('delt') >= 0 ? '<circle cx="' + J.shrF[0].toFixed(1) + '" cy="' + J.shrF[1].toFixed(1) + '" r="4.6" fill="' + HN + '"/><circle cx="' + J.shrB[0].toFixed(1) + '" cy="' + J.shrB[1].toFixed(1) + '" r="4.6" fill="' + HN + '"/>' : '');
+  } else {
+    // busto: bacino più stretto, torace più largo; petto o schiena evidenziati sul lato giusto
+    const d = [J.sh[0] - J.hip[0], J.sh[1] - J.hip[1]]; const l = Math.hypot(d[0], d[1]) || 1; const n = [d[1] / l, -d[0] / l]; // n = verso la schiena
+    torso = capsule(J.hip, J.sh, 12.5, 14.5, col('torso', true));
+    const chestC = add(add(J.hip, d, 0.66), n, -3.6), backC = add(add(J.hip, d, 0.62), n, 3.6);
+    if (parts.indexOf('chest') >= 0) torso += '<ellipse cx="' + chestC[0].toFixed(1) + '" cy="' + chestC[1].toFixed(1) + '" rx="4.4" ry="7" transform="rotate(' + (Math.atan2(d[1], d[0]) * 180 / Math.PI + 90).toFixed(0) + ' ' + chestC[0].toFixed(1) + ' ' + chestC[1].toFixed(1) + ')" fill="' + HN + '"/>';
+    if (parts.indexOf('back') >= 0) torso += '<ellipse cx="' + backC[0].toFixed(1) + '" cy="' + backC[1].toFixed(1) + '" rx="4.4" ry="10" transform="rotate(' + (Math.atan2(d[1], d[0]) * 180 / Math.PI + 90).toFixed(0) + ' ' + backC[0].toFixed(1) + ' ' + backC[1].toFixed(1) + ')" fill="' + HN + '"/>';
+    if (parts.indexOf('glute') >= 0) { const g = add(J.hip, n, 3.4); torso += '<circle cx="' + g[0].toFixed(1) + '" cy="' + g[1].toFixed(1) + '" r="6.2" fill="' + HN + '"/>'; }
+    if (parts.indexOf('delt') >= 0) torso += '<circle cx="' + J.sh[0].toFixed(1) + '" cy="' + J.sh[1].toFixed(1) + '" r="5.2" fill="' + HN + '"/>';
+  }
+  // ombra a terra sotto la figura
+  const low = Math.max(J.ankleF[1], J.ankleB[1], J.handF[1], J.hip[1]);
+  const shadow = low > FLOOR - 14 ? '<ellipse cx="' + ((J.hip[0] + J.sh[0]) / 2).toFixed(1) + '" cy="' + (FLOOR + 1.5) + '" rx="34" ry="2.6" fill="#000" opacity=".45"/>' : '';
+  if (front) return shadow + leg('B', true) + leg('F', true) + torso + neck + head + arm('B', true) + arm('F', true);
+  return shadow + arm('B', false) + leg('B', false) + torso + neck + head + leg('F', true) + arm('F', true);
 }
 
 /* ---------- Animazioni ---------- */
@@ -118,7 +152,7 @@ const ANIMS = {
   pushup_band: { base: 'pushup', props: [{ k: 'band', a: 'handF', b: 'sh' }] },
   pike: { a: { hip: [66, 63], t: 68.5, h: 0, hF: [100, 101, 'b'], hB: [98, 101, 'b'], fF: [52, 97, 'u'], fB: [51, 97, 'u'], tF: 20, tB: 20 }, b: { hip: [73, 68], t: 49 } },
   pike_elev: { props: [{ k: 'chair', x: 28, y: 80, w: 24, back: 'l' }], a: { hip: [74, 54], t: 51.5, hF: [100, 101, 'b'], hB: [98, 101, 'b'], fF: [44, 77, 'u'], fB: [43, 77, 'u'], tF: 20, tB: 20 }, b: { hip: [80, 60], t: 33 } },
-  handstand: { hold: true, props: [{ k: 'wall', x: 110 }], a: { hip: [99, 42], t: -2, hF: [100, 101, 'b'], hB: [98, 101, 'b'], fF: [106, 5, 'f'], fB: [105, 6, 'f'], tF: 160, tB: 160 }, b: { hip: [99, 41], t: -1 } },
+  handstand: { hold: true, props: [{ k: 'wall', x: 110 }], a: { hip: [70, 62], t: 66, h: 0, hF: [100, 101, 'b'], hB: [98, 101, 'b'], fF: [56, 97, 'u'], fB: [55, 97, 'u'], tF: 20, tB: 20 }, b: { hip: [99, 42], t: -2, fF: [106, 5, 'f'], fB: [105, 6, 'f'], tF: 160, tB: 160 } },
   hspu: { props: [{ k: 'wall', x: 110 }, { k: 'cushion', x: 90, y: 100, w: 18 }], a: { hip: [99, 42], t: -2, hF: [100, 101, 'b'], hB: [98, 101, 'b'], fF: [106, 5, 'f'], fB: [105, 6, 'f'], tF: 160, tB: 160 }, b: { hip: [98, 58], t: 0, fF: [105, 21, 'f'], fB: [104, 22, 'f'] } },
   invrow: { props: [{ k: 'table', x: 86, y: 58, w: 56 }], a: { hip: [67.6, 94.5], t: 98.3, h: 0, hF: [100, 60, 'b'], hB: [98, 60, 'b'], fF: [30, 99, 'u'], fB: [29, 99, 'u'], tF: 175, tB: 175 }, b: { hip: [64.5, 83.1], t: 114.7 } },
   invrow_knee: { props: [{ k: 'table', x: 86, y: 58, w: 56 }], a: { hip: [70, 96], t: 98, hF: [100, 60, 'b'], hB: [98, 60, 'b'], fF: [50, 100, 'u'], fB: [49, 100, 'u'], tF: 100, tB: 100 }, b: { hip: [68, 86], t: 115 } },
@@ -129,11 +163,11 @@ const ANIMS = {
   hipthrust: { props: [{ k: 'sofa', x: 6, y: 80, w: 40, back: 'l' }], a: { hip: [64, 96], t: -126.9, h: -20, fF: [88, 101, 'u'], fB: [86, 82, 'u'], tB: 150, aF: [-150, -120], aB: [-145, -115] }, b: { hip: [70, 79], t: -91.9, h: 0, fB: [98, 62, 'u'], aF: [-120, -95], aB: [-115, -90] } },
   legcurl: { props: [{ k: 'towel', j: 'ankleF' }], a: { hip: [66, 88], t: -68.5, fF: [102, 100, 'u'], fB: [101, 100, 'u'], tF: 160, tB: 160, aF: [90, 90], aB: [88, 90] }, b: { hip: [64, 85], t: -61.7, fF: [82, 100, 'u'], fB: [81, 100, 'u'], tF: 120, tB: 120 } },
   nordic: { inv: true, props: [{ k: 'sofa', x: 18, y: 86, w: 36, back: 'l' }, { k: 'cushion', x: 62, y: 100, w: 18 }], a: { hip: [70, 81], t: 180, h: 0, fF: [52, 100, 'd'], fB: [51, 100, 'd'], tF: -90, tB: -90, aF: [40, 170], aB: [35, 165] }, b: { hip: [84.6, 87.8], t: 130, h: 0, aF: [110, 100], aB: [105, 95] } },
-  plank: { hold: true, a: { hip: [67.5, 90.9], t: 99.2, h: -10, hF: [112, 101, 'd'], hB: [110, 101, 'd'], fF: [30, 97, 'u'], fB: [29, 97, 'u'], tF: 15, tB: 15 }, b: { hip: [67.5, 91.5], t: 99 } },
-  hollow: { hold: true, a: { hip: [80, 99], t: -101.5, h: -5, fF: [116, 90, 'u'], fB: [115, 91, 'u'], tF: 160, tB: 160, aF: [-100, -100], aB: [-98, -98] }, b: { hip: [80, 99], t: -103, fF: [116, 88, 'u'], fB: [115, 89, 'u'] } },
-  lsit: { hold: true, props: [{ k: 'chair', x: 60, y: 74, w: 24, noBack: true }], a: { hip: [74, 74], t: 182, hF: [72, 73, 'b'], hB: [70, 73, 'b'], fF: [112, 76, 'u'], fB: [111, 76, 'u'], tF: 180, tB: 180 }, b: { hip: [74, 73], fF: [112, 74, 'u'], fB: [111, 74, 'u'] } },
-  lsit_bent: { base: 'lsit', a: { fF: [92, 66, 'u'], fB: [91, 66, 'u'], tF: 100, tB: 100 }, b: { fF: [92, 65, 'u'], fB: [91, 65, 'u'] } },
-  lsit_one: { base: 'lsit', a: { fB: [92, 66, 'u'], tB: 100 }, b: { fB: [92, 65, 'u'] } },
+  plank: { hold: true, a: { hip: [66, 95], t: 104, h: -10, hF: [112, 101, 'd'], hB: [110, 101, 'd'], fF: [36, 92, 'd'], fB: [35, 92, 'd'], tF: -70, tB: -70 }, b: { hip: [67.5, 90.9], t: 99.2, fF: [30, 97, 'u'], fB: [29, 97, 'u'], tF: 15, tB: 15 } },
+  hollow: { hold: true, a: { hip: [80, 99], t: -90, h: 0, fF: [118, 100, 'u'], fB: [117, 100, 'u'], tF: 170, tB: 170, aF: [-92, -92], aB: [-90, -90] }, b: { t: -101.5, h: -5, fF: [116, 90, 'u'], fB: [115, 91, 'u'], tF: 160, tB: 160, aF: [-100, -100], aB: [-98, -98] } },
+  lsit: { hold: true, props: [{ k: 'chair', x: 60, y: 74, w: 24, noBack: true }], a: { hip: [74, 78], t: 182, hF: [72, 73, 'b'], hB: [70, 73, 'b'], fF: [96, 101, 'u'], fB: [95, 101, 'u'], tF: 90, tB: 90 }, b: { hip: [74, 74], fF: [112, 76, 'u'], fB: [111, 76, 'u'], tF: 180, tB: 180 } },
+  lsit_bent: { base: 'lsit', b: { hip: [74, 74], fF: [92, 66, 'u'], fB: [91, 66, 'u'], tF: 100, tB: 100 } },
+  lsit_one: { base: 'lsit', b: { hip: [74, 74], fF: [112, 76, 'u'], fB: [92, 66, 'u'], tF: 180, tB: 100 } },
   pullup: { props: [{ k: 'bar', y: -4 }], a: { hip: [90, 55], t: 180, h: 0, hF: [94, -4, 'f'], hB: [86, -4, 'f'], fF: [82, 90, 'f'], fB: [81, 91, 'f'], tF: 40, tB: 40 }, b: { hip: [88, 38], t: 182, fF: [80, 73, 'f'], fB: [79, 74, 'f'] } },
   hangknee: { props: [{ k: 'bar', y: -4 }], a: { hip: [90, 55], t: 180, hF: [94, -4, 'f'], hB: [86, -4, 'f'], fF: [90, 93, 'f'], fB: [89, 93, 'f'], tF: 60, tB: 60 }, b: { hip: [88, 52], t: 176, fF: [108, 72, 'u'], fB: [107, 73, 'u'] } },
   hangleg: { base: 'hangknee', b: { hip: [86, 50], t: 172, fF: [123, 52, 'u'], fB: [122, 53, 'u'], tF: 170, tB: 170 } },
@@ -154,19 +188,19 @@ const ANIMS = {
   /* Collo */
   neckflex: { a: { hip: [66, 98], t: -88, h: 0, fF: [88, 101, 'u'], fB: [87, 101, 'u'], aF: [88, 90], aB: [86, 90] }, b: { h: -55 } },
   neckext: { a: { hip: [60, 97], t: 90, h: -6, fF: [22, 99, 'u'], fB: [21, 99, 'u'], tF: 0, tB: 0, aF: [-88, -90], aB: [-86, -90] }, b: { h: 28 } },
-  neckiso: { hold: true, a: Object.assign({}, STAND, { h: 0, hF: [88, 21, 'd'], hB: [74, 62, 'b'] }), b: { h: 3 } },
-  neckisoback: { hold: true, a: Object.assign({}, STAND, { h: 0, hF: [72, 19, 'd'], hB: [71, 20, 'd'] }), b: { h: -3 } },
-  necksideiso: { hold: true, front: true, a: { hip: [80, 63], t: 180, h: 0, fF: [86, 101, 'f'], fB: [74, 101, 'b'], tF: 80, tB: -80, hF: [88, 20, 'f'], hB: [70, 62, 'b'] }, b: { h: -4 } },
+  neckiso: { hold: true, a: Object.assign({}, STAND, { h: 0, hF: [84, 62, 'b'], hB: [76, 62, 'b'] }), b: { h: 4, hF: [88, 21, 'd'] } },
+  neckisoback: { hold: true, a: Object.assign({}, STAND, { h: 0, hF: [84, 62, 'b'], hB: [76, 62, 'b'] }), b: { h: -4, hF: [72, 19, 'd'], hB: [71, 20, 'd'] } },
+  necksideiso: { hold: true, front: true, a: { hip: [80, 63], t: 180, h: 0, fF: [86, 101, 'f'], fB: [74, 101, 'b'], tF: 80, tB: -80, hF: [90, 62, 'f'], hB: [70, 62, 'b'] }, b: { h: -5, hF: [88, 20, 'f'] } },
   shrug: { props: [{ k: 'pack', j: 'handF' }], a: Object.assign({}, STAND, { hF: [84, 62, 'b'], hB: [80, 62, 'b'] }), b: { hip: [80, 61.5], hF: [84, 57, 'b'], hB: [80, 57, 'b'] } },
   /* Riscaldamento e defaticamento */
   jacks: { front: true, a: { hip: [80, 63], t: 180, fF: [85, 101, 'f'], fB: [75, 101, 'b'], tF: 80, tB: -80, hF: [89, 63, 'f'], hB: [71, 63, 'b'] }, b: { hip: [80, 61], fF: [98, 101, 'f'], fB: [62, 101, 'b'], hF: [95, 8, 'f'], hB: [65, 8, 'b'] } },
   armcircle: { front: true, a: { hip: [80, 63], t: 180, fF: [86, 101, 'f'], fB: [74, 101, 'b'], tF: 80, tB: -80, hF: [116, 37, 'd'], hB: [44, 37, 'd'] }, b: { hF: [110, 14, 'd'], hB: [50, 14, 'd'] } },
   catcow: { a: { hip: [62, 74], t: 92, h: -40, hF: [93, 101, 'b'], hB: [91, 101, 'b'], fF: [44, 100, 'd'], fB: [43, 100, 'd'], tF: -90, tB: -90 }, b: { hip: [62, 72], t: 84, h: 50 } },
-  childpose: { hold: true, a: { hip: [52, 86], t: 76, h: 25, fF: [40, 100, 'f'], fB: [39, 100, 'f'], tF: -90, tB: -90, hF: [112, 99, 'u'], hB: [111, 99, 'u'] }, b: { hip: [52, 87], t: 77 } },
+  childpose: { hold: true, a: { hip: [47, 86], t: 178, h: 0, fF: [40, 100, 'f'], fB: [39, 100, 'f'], tF: -90, tB: -90, hF: [50, 84, 'b'], hB: [48, 84, 'b'] }, b: { hip: [52, 86], t: 76, h: 25, hF: [112, 99, 'u'], hB: [111, 99, 'u'] } },
   hamstretch: { a: { hip: [50, 97], t: 150, h: 10, fF: [88, 99, 'u'], fB: [87, 99, 'u'], tF: 180, tB: 180, hF: [80, 88, 'u'], hB: [79, 89, 'u'] }, b: { t: 118, h: 20, hF: [90, 95, 'u'], hB: [89, 96, 'u'] } },
-  quadstretch: { hold: true, props: [{ k: 'wall', x: 112 }], a: { hip: [80, 63], t: 180, fF: [82, 101, 'f'], fB: [72, 62, 'd'], tB: -20, hB: [72, 60, 'b'], hF: [110, 40, 'd'] }, b: { hip: [80, 62.5], fB: [72, 61, 'd'], hB: [72, 59, 'b'] } },
-  chestwall: { hold: true, props: [{ k: 'wall', x: 38 }], a: { hip: [72, 63], t: 178, fF: [78, 101, 'f'], fB: [70, 101, 'f'], hF: [47, 33, 'd'], hB: [80, 62, 'b'] }, b: { hip: [74, 63], t: 176 } },
-  hipflexor: { hold: true, props: [{ k: 'cushion', x: 44, y: 100, w: 16 }], a: { hip: [74, 85], t: 180, fF: [100, 101, 'f'], fB: [36, 100, 'd'], tF: 90, tB: -90, hF: [94, 82, 'd'], hB: [92, 82, 'd'] }, b: { hip: [78, 87], t: 178 } }
+  quadstretch: { hold: true, props: [{ k: 'wall', x: 112 }], a: { hip: [80, 63], t: 180, fF: [82, 101, 'f'], fB: [78, 101, 'f'], tB: 90, hB: [78, 62, 'b'], hF: [110, 40, 'd'] }, b: { fB: [72, 62, 'd'], tB: -20, hB: [72, 60, 'b'] } },
+  chestwall: { hold: true, props: [{ k: 'wall', x: 38 }], a: { hip: [72, 63], t: 180, fF: [78, 101, 'f'], fB: [70, 101, 'f'], hF: [74, 62, 'b'], hB: [80, 62, 'b'] }, b: { hip: [74, 63], t: 176, hF: [47, 33, 'd'] } },
+  hipflexor: { hold: true, props: [{ k: 'cushion', x: 44, y: 100, w: 16 }], a: { hip: [70, 82], t: 180, fF: [100, 101, 'f'], fB: [36, 100, 'd'], tF: 90, tB: -90, hF: [94, 82, 'd'], hB: [92, 82, 'd'] }, b: { hip: [79, 88], t: 178 } },
 };
 
 /* Esercizio → animazione */
@@ -200,19 +234,20 @@ function animDef(key) {
   return { a: a, b: bb, hold: d.hold != null ? d.hold : b.hold, front: d.front || b.front, props: d.props || b.props, inv: d.inv || b.inv };
 }
 
-function frameInner(key, k) {
+function frameInner(key, k, hl) {
   const d = animDef(key); const a = d.a; const b = Object.assign({}, a, d.b);
   const pose = lerpPose(a, b, k); const J = solve(pose, d.front);
   const props = d.props || [];
   const back = props.filter((p) => ['pack', 'band', 'towel'].indexOf(p.k) < 0).map((p) => propSvg(p, J)).join('');
   const fore = props.filter((p) => ['pack', 'band', 'towel'].indexOf(p.k) >= 0).map((p) => propSvg(p, J)).join('');
-  return '<line x1="-10" y1="' + (FLOOR + 0.8) + '" x2="170" y2="' + (FLOOR + 0.8) + '" stroke="#2A2A2F" stroke-width="1.6"/>' + back + figureSvg(J, d.front) + fore;
+  return '<line x1="-10" y1="' + (FLOOR + 0.8) + '" x2="170" y2="' + (FLOOR + 0.8) + '" stroke="#2A2A2F" stroke-width="1.6"/>' + back + figureSvg(J, d.front, hl) + fore;
 }
 
 /* HTML del riquadro animato; l'animazione parte da sola (vedi tickAnims). */
 function animBox(exId, cls) {
   const key = EX_ANIM[exId] || (ANIMS[exId] ? exId : null); if (!key || !ANIMS[key]) return '';
-  return '<div class="anim ' + (cls || '') + '"><svg viewBox="0 -12 160 124" data-anim="' + key + '" role="img" aria-label="Animazione dell’esercizio">' + frameInner(key, 0) + '</svg></div>';
+  const hl = EX[exId] ? EX[exId].m : '';
+  return '<div class="anim ' + (cls || '') + '"><svg viewBox="0 -12 160 124" data-anim="' + key + '" data-hl="' + hl + '" role="img" aria-label="Animazione dell’esercizio">' + frameInner(key, 0, hl) + '</svg></div>';
 }
 
 let animT0 = 0;
@@ -220,16 +255,19 @@ function tickAnims(ts) {
   const els = document.querySelectorAll('svg[data-anim]');
   if (els.length) {
     if (!animT0) animT0 = ts;
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Le dimostrazioni si muovono sempre, anche con "riduci animazioni": servono a capire l'esercizio.
     els.forEach((el) => {
       const key = el.getAttribute('data-anim'); const d = animDef(key);
-      const per = d.hold ? 3600 : 2800;
-      const ph = ((ts - animT0) % per) / per;
-      // a → b → a con pause brevi agli estremi
+      const ease = (x) => (1 - Math.cos(x * Math.PI)) / 2;
       let k;
-      if (reduce) k = 0.5;
-      else if (ph < 0.12) k = 0; else if (ph < 0.5) k = (1 - Math.cos(((ph - 0.12) / 0.38) * Math.PI)) / 2; else if (ph < 0.62) k = 1; else k = (1 + Math.cos(((ph - 0.62) / 0.38) * Math.PI)) / 2;
-      el.innerHTML = frameInner(key, k);
+      if (d.hold) { // entra in posizione, la tiene, torna indietro
+        const ph = ((ts - animT0) % 4200) / 4200;
+        k = ph < 0.2 ? ease(ph / 0.2) : ph < 0.8 ? 1 : ph < 0.95 ? ease(1 - (ph - 0.8) / 0.15) : 0;
+      } else {
+        const ph = ((ts - animT0) % 2800) / 2800;
+        k = ph < 0.12 ? 0 : ph < 0.5 ? ease((ph - 0.12) / 0.38) : ph < 0.62 ? 1 : ease(1 - (ph - 0.62) / 0.38);
+      }
+      el.innerHTML = frameInner(key, k, el.getAttribute('data-hl') || '');
     });
   }
   requestAnimationFrame(tickAnims);

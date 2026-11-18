@@ -22,6 +22,18 @@ function profile(eq, days, dur, extra) {
 }
 function prog(p, st) { st = st || R('fresh()'); st.profile = p; return R('program')(p, st); }
 
+console.log('\nCodice');
+test('Nessun nome globale duplicato tra i file (una funzione non deve sovrascriverne un’altra)', () => {
+  const seen = {}; const dup = [];
+  ['data.js', 'store.js', 'engine.js', 'ui.js', 'anim.js', 'views.js', 'app.js'].forEach((f) => {
+    fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8').split('\n').forEach((ln) => {
+      const m = ln.match(/^(?:function|const|let|var)\s+([A-Za-z_$][\w$]*)/); if (!m) return;
+      if (seen[m[1]] && seen[m[1]] !== f) dup.push(m[1] + ' (' + seen[m[1]] + ', ' + f + ')'); seen[m[1]] = f;
+    });
+  });
+  eq(dup, [], 'duplicati');
+});
+
 console.log('\nDati');
 test('ID degli esercizi unici', () => { const ids = []; Object.values(R('LADDERS')).forEach((L) => L.lv.forEach((l) => ids.push(l.id))); eq(ids.length, new Set(ids).size, 'ID duplicati'); });
 test('ID degli slot unici', () => { const ids = []; Object.values(R('WORKOUTS')).forEach((w) => w.slots.forEach((s) => { ids.push(s.id); if (s.bar) ids.push(s.bar.id); })); eq(ids.length, new Set(ids).size); });

@@ -332,6 +332,9 @@ body.full #tabbar{display:none}
 #sheet .pane{overflow-x:hidden}
 
 .wd .ball{position:absolute;top:-7px;right:-3px;font-size:12px;font-style:normal;line-height:1}
+.voicebox{padding:4px 0 12px;border-top:1px solid var(--line)}
+.voicebox select{height:44px;background:var(--s2);border:1px solid var(--line);border-radius:14px;padding:0 12px;color:var(--tx)}
+.voicebox .row{margin-top:6px}
 .rt-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}
 
 /* Calendario */

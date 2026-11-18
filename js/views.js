@@ -325,7 +325,7 @@ function vProfile() {
   h += '<div class="sec-h"><h3>Zone da proteggere</h3></div><section class="card"><p class="muted small" style="margin-bottom:12px">Gli esercizi che le sollecitano molto vengono sostituiti.</p><div class="tags">' + Object.keys(STRESS).map((k) => '<button class="pill ' + (d.avoid.indexOf(k) >= 0 ? 'on' : '') + '" data-a="pAvoid" data-v="' + k + '">' + STRESS[k] + '</button>').join('') + '</div>' +
     (d.excl.length ? '<div class="sp16"></div><h4 style="margin-bottom:8px">Esercizi esclusi</h4>' + d.excl.filter((x) => EX[x]).map((x) => '<div class="lrow"><div class="f">' + esc(EX[x].n) + '</div><button class="btn ghost xs" data-a="pUnexcl" data-v="' + x + '">Rimetti</button></div>').join('') : '') + '</section>';
   h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + toggle('setNutri', S.settings.nutri !== false, 'Consigli sull’alimentazione', 'Scheda informativa nella schermata Oggi', 'setTog') +
-    toggle('setVoice', S.settings.voice !== false, 'Guida vocale', 'Conto alla rovescia e nome del prossimo esercizio', 'setTog') +
+    toggle('setVoice', S.settings.voice !== false, 'Guida vocale', 'Conto alla rovescia e nome del prossimo esercizio', 'setTog') + voicePicker() +
     toggle('setWarm', S.settings.warm !== false, 'Riscaldamento guidato', 'Circa ' + routineMin('warm') + ' minuti prima di ogni allenamento', 'setTog') +
     toggle('setCool', S.settings.cool !== false, 'Defaticamento guidato', 'Circa ' + routineMin('cool') + ' minuti di allungamento alla fine', 'setTog') + '</section>' +
     '<button class="item" data-a="calSheet"><span class="letter">' + ICON.cal + '</span><div class="f"><div class="t">Promemoria nel calendario</div><div class="s">Allenamenti, pesate, misure e backup</div></div><span class="chev">' + ICON.chevR + '</span></button>' +
@@ -572,4 +572,13 @@ function sheetDayTap(k) {
     (on ? '<button class="btn ghost" data-a="matchMove" data-v="' + k + '">Rinviata: cambia data</button><div class="sp10"></div><button class="btn danger" data-a="matchDel" data-v="' + k + '">Togli la partita</button>'
       : '<button class="btn primary" data-a="matchToggle" data-v="' + k + '">⚽ Ho una partita</button>') +
     (route !== 'cal' ? '<div class="sp10"></div><button class="btn ghost" data-a="tab" data-v="cal">' + ICON.cal + 'Apri il calendario</button>' : '');
+}
+
+/* Scelta della voce italiana del telefono. */
+function voicePicker() {
+  if (S.settings.voice === false) return '';
+  const vs = itVoices(); const cur = pickVoice();
+  if (!vs.length) return '<div class="voicebox"><p class="small muted">Il telefono non ha voci italiane installate. Su Android: Impostazioni → Accessibilità → Sintesi vocale → motore Google → Installa dati vocali → Italiano (scegli la voce di qualità alta).</p></div>';
+  return '<div class="voicebox"><label class="small muted" for="voiceSel">Voce</label><div class="row"><select id="voiceSel" class="f">' + vs.map((v) => '<option value="' + esc(v.name) + '"' + (cur && v.name === cur.name ? ' selected' : '') + '>' + esc(v.name.replace(/Microsoft |Google /, '').replace(/\s*\(.*\)/, '')) + (v.localService ? '' : ' · online') + '</option>').join('') + '</select><button class="btn ghost xs" data-a="voiceTest">' + ICON.play + 'Prova</button></div>' +
+    '<p class="muted tiny" style="margin-top:6px">Se nessuna voce ti piace, installa una voce italiana di qualità alta dalle impostazioni di sintesi vocale del telefono.</p></div>';
 }

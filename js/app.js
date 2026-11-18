@@ -60,11 +60,24 @@ function beep(n) {
   } catch (e) {}
 }
 /* Guida vocale (sintesi del telefono, in italiano). */
-function say(text) {
+/* Voci italiane del telefono, dalla più naturale alla meno naturale. */
+function itVoices() {
   try {
-    if (S.settings.voice === false || !window.speechSynthesis) return false;
-    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'it-IT'; u.rate = 1.05;
-    const v = speechSynthesis.getVoices().find((x) => /^it/i.test(x.lang)); if (v) u.voice = v;
+    const vs = (window.speechSynthesis ? speechSynthesis.getVoices() : []).filter((v) => /^it([-_]|$)/i.test(v.lang));
+    const score = (v) => (/natural|neural|premium|enhanced|siri/i.test(v.name) ? 6 : 0) + (/google/i.test(v.name) ? 5 : 0) + (/(alice|federica|luca|paola|elsa|diego|isabella|cosimo)/i.test(v.name) ? 3 : 0) - (/compact|espeak|eloquence/i.test(v.name) ? 6 : 0) + (v.localService ? 1 : 0);
+    return vs.sort((a, b) => score(b) - score(a));
+  } catch (e) { return []; }
+}
+function pickVoice() { const vs = itVoices(); return vs.find((v) => v.name === S.settings.voiceName) || vs[0] || null; }
+if (window.speechSynthesis) try { speechSynthesis.onvoiceschanged = () => { if (route === 'profile') render(); }; speechSynthesis.getVoices(); } catch (e) {}
+/* Parla. queue = true mette la frase in coda invece di interrompere quella in corso
+   (così le parole non vengono tagliate a metà). */
+function say(text, queue, force) {
+  try {
+    if ((S.settings.voice === false && !force) || !window.speechSynthesis) return false;
+    if (!queue) speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.lang = 'it-IT'; u.rate = 0.95; u.pitch = 1;
+    const v = pickVoice(); if (v) u.voice = v;
     speechSynthesis.speak(u); return true;
   } catch (e) { return false; }
 }
@@ -102,14 +115,14 @@ function openOv(o) {
   } else if (o.mode === 'hold') {
     const hx = S.active.ex[o.ei].x; const hk = EX_ANIM[hx];
     h = '<div class="eyebrow" id="hSub">Mettiti in posizione</div><div class="nexttx" style="font-size:18px;margin:4px 0">' + esc(EX[hx].n) + '</div>' +
-      (hk ? '<div class="anim sm" style="width:100%;margin:6px 0 4px"><svg viewBox="0 -12 160 124" data-anim="' + hk + '" role="img" aria-label="Animazione">' + frameInner(hk, 0) + '</svg></div>' : '') +
+      (hk ? '<div class="anim sm" style="width:100%;margin:6px 0 4px"><svg viewBox="0 -12 160 124" data-anim="' + hk + '" data-hl="' + EX[hx].m + '" role="img" aria-label="Animazione">' + frameInner(hk, 0, EX[hx].m) + '</svg></div>' : '') +
       '<div class="ring small">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">3</b><span id="hL">preparati</span></div></div>' +
       '<div class="muted small" id="hSide" style="margin-bottom:18px">' + (o.side ? 'lato 1 di 2 · ' : '') + 'obiettivo ' + o.target + ' secondi · si ferma da solo</div>' +
       '<button class="btn primary" data-a="holdStop">' + ICON.stop + 'Fermati prima e registra</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'tempo') {
     const ex = S.active.ex[o.ei];
     h = '<div class="eyebrow">Serie ' + (o.si + 1) + ' di ' + ex.sets.length + ' · ritmo guidato</div><div class="nexttx" style="font-size:18px;margin-bottom:6px">' + esc(EX[ex.x].n) + '</div>' +
-      (o.key ? '<div class="anim sm" style="width:100%;margin:6px 0 10px"><svg id="tAnim" viewBox="0 -12 160 124" role="img" aria-label="Animazione sincronizzata">' + frameInner(o.key, 0) + '</svg></div>' : '') +
+      (o.key ? '<div class="anim sm" style="width:100%;margin:6px 0 10px"><svg id="tAnim" viewBox="0 -12 160 124" role="img" aria-label="Animazione sincronizzata">' + frameInner(o.key, 0, o.hl) + '</svg></div>' : '') +
       '<div class="tphase" id="tPh">3</div><div class="tbar"><i id="tBar" style="width:0"></i></div>' +
       '<div class="trow"><div><div class="tcount" id="tCnt">0<small>/' + o.target + '</small></div><div class="muted small" id="tSide">' + (o.side ? 'ripetizioni · lato 1 di 2' : 'ripetizioni fatte') + '</div></div>' +
       '<div><div class="tcount sm" id="tTime">0:00</div><div class="muted small">tempo della serie</div></div></div>' +
@@ -150,7 +163,7 @@ function startRest(ei, si) {
   a.timer = { end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX }; save();
   openOv({ mode: 'rest', end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX });
   const secs = total >= 60 && total % 60 === 0 ? (total / 60 === 1 ? 'un minuto' : (total / 60) + ' minuti') : total >= 60 ? 'un minuto e ' + (total - 60) + ' secondi' : total + ' secondi';
-  say('Serie finita. Riposa ' + secs + '. ' + (nextX ? 'Poi: ' + next : next) + '.');
+  say('Serie finita. Riposa ' + secs + '. ' + (nextX ? 'Poi: ' + next : next) + '.', true);
 }
 
 /* Aggiunge o toglie una partita in una data; aggiorna anche la bozza del profilo. */
@@ -264,18 +277,20 @@ function tempoPose(st) {
 }
 function tempoTick() {
   const o = ov; const st = tempoState(); const P = (id) => document.getElementById(id);
-  const an = P('tAnim'); if (an) an.innerHTML = frameInner(o.key, tempoPose(st));
+  const an = P('tAnim'); if (an) an.innerHTML = frameInner(o.key, tempoPose(st), o.hl);
   const el = Math.max(0, (Date.now() - o.start) / 1000 - 3); const tt = P('tTime'); if (tt) tt.textContent = mmss(el);
   if (st.pre) { if (o.last !== 'pre' + st.pre) { o.last = 'pre' + st.pre; if (!say(st.pre === 3 ? 'Pronto. 3' : String(st.pre))) tone(660); } P('tPh').textContent = st.pre; P('tPh').className = 'tphase h'; return; }
-  if (st.end) { tempoFinish(o.target); return; }
+  if (st.end) { say(String(o.target)); tempoFinish(o.target); return; }
   if (st.change) { if (o.last !== 'chg') { o.last = 'chg'; if (!say(o.target + '. Cambia lato')) tone(440, 0.3); } P('tPh').textContent = 'Cambia lato'; P('tPh').className = 'tphase h'; P('tBar').style.width = '0'; P('tCnt').innerHTML = '0<small>/' + o.target + '</small>'; P('tSide').textContent = 'ripetizioni · lato 2 di 2'; return; }
   const p = o.ph[st.ph]; const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
   if (o.last !== key) {
     o.last = key;
     // La voce dice sempre cosa fare; a inizio ripetizione dice anche quante ne hai fatte.
     const word = p.n.toLowerCase();
-    const txt = st.ph === 0 && st.rep > 0 ? st.rep + '. ' + word : word;
-    if (!say(txt)) tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.08);
+    let spoken;
+    if (st.ph === 0 && st.rep > 0) { spoken = say(String(st.rep)); say(word, true); } // conta la ripetizione appena fatta, poi la fase
+    else spoken = say(word, speechSynthesis && speechSynthesis.speaking);
+    if (!spoken) tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.08);
     buzz(25);
   }
   P('tPh').textContent = p.n; P('tPh').className = 'tphase ' + p.k;
@@ -440,7 +455,7 @@ const A = {
   tempoStart: (t) => {
     ensureAudio(); const e = curEx(); const i = +t.dataset.s; const s = e.sets[i];
     const tp = tempoOf(e.x); const key = EX_ANIM[e.x]; const d = key ? animDef(key) : null;
-    openOv({ mode: 'tempo', start: Date.now(), ei: S.active.idx, si: i, target: s.v, side: !!e.side, ph: tempoPhases(tp), w: tp.w, key: key, inv: !!(d && d.inv) });
+    openOv({ mode: 'tempo', start: Date.now(), ei: S.active.idx, si: i, target: s.v, side: !!e.side, ph: tempoPhases(tp), w: tp.w, key: key, inv: !!(d && d.inv), hl: EX[e.x].m });
   },
   tempoStop: () => {
     if (!ov || ov.mode !== 'tempo') return; const st = tempoState();
@@ -662,6 +677,8 @@ const A = {
   matchMove: (t) => sheet('<h3 style="margin-bottom:6px">Partita rinviata</h3><p class="muted small" style="margin-bottom:14px">Nuova data per la partita del ' + esc(fmtD(t.dataset.v)) + ':</p><input id="mMove" type="date" min="' + today() + '" style="width:100%;height:54px;background:var(--s2);border:1px solid var(--line);border-radius:18px;padding:0 16px;margin-bottom:12px"><button class="btn primary" data-a="matchMoveOk" data-v="' + t.dataset.v + '">Sposta la partita</button><div class="sp10"></div><button class="btn ghost" data-a="matchMoveNone" data-v="' + t.dataset.v + '">Data ancora da definire</button>'),
   matchMoveOk: (t) => { const v = ($('#mMove') || {}).value; if (!v) return toast('Scegli la nuova data'); setMatch(t.dataset.v, false); setMatch(v, true); closeSheet(); toast('Partita spostata al ' + fmtD(v)); render(); },
   matchMoveNone: (t) => { setMatch(t.dataset.v, false); closeSheet(); toast('Partita tolta: aggiungila quando c’è la nuova data'); render(); },
+  voicePick: (t) => { S.settings.voiceName = t.value; save(); say('Ciao! Scendi. Spingi. Uno. Due. Tre.', false, true); },
+  voiceTest: () => { ensureAudio(); say('Serie finita. Riposa novanta secondi. Poi: squat bulgaro.', false, true); },
   newsOk: () => { S.meta.news = false; save(); closeSheet(); if (!S.meta.safety) openSheet(safetyHtml(true)); },
   newsProfile: () => { S.meta.news = false; save(); closeSheet(); go('profile'); },
 
@@ -864,6 +881,7 @@ document.addEventListener('change', (ev) => {
     S.profile.name = d.name; S.profile.height = d.height; S.profile.goal = Math.round(d.goal * 10) / 10; save(); toast('Salvato');
     const av = document.querySelector('.page-t .avatar'); if (av) av.textContent = initial(d.name);
   }
+  if (t.id === 'voiceSel') { A.voicePick(t); return; }
   if (t.id === 'mDate' && t.value) { setMatch(t.value, true); toast('Partita aggiunta: ' + fmtD(t.value)); render(); }
 });
 document.addEventListener('keydown', (ev) => {
