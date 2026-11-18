@@ -89,7 +89,7 @@ function openOv(o) {
   ov = o; clearInterval(ovIv);
   const b = $('#ovBody'); let h = '';
   if (o.mode === 'rest') {
-    h = '<div class="eyebrow">Recupero</div><div class="ring' + (o.nextX ? ' small' : '') + '">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">' + mmss(o.total) + '</b><span>secondi</span></div></div>' +
+    h = '<div class="eyebrow">Recupero</div><div class="ring' + (o.nextX ? ' small' : '') + '">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">' + mmss(o.total) + '</b><span>riposa</span></div></div>' +
       '<div class="eyebrow">' + esc(o.nextLbl) + '</div><div class="nexttx">' + esc(o.next) + '</div>' + (o.nextX ? '<div style="width:100%">' + animBox(o.nextX, 'sm') + '</div>' : '') + rirBox(o.ei, o.si) +
       '<div class="row" style="width:100%"><button class="btn ghost f" data-a="restAdd" data-v="-15">−15 s</button><button class="btn ghost f" data-a="restAdd" data-v="15">+15 s</button></div>' +
       '<div class="sp10"></div><button class="btn primary" data-a="restSkip">Salta recupero</button><div class="muted tiny center" id="ovPref" style="margin-top:10px;min-height:16px"></div>';
@@ -127,7 +127,7 @@ function startRest(ei, si) {
   const exDone = e.sets.every((x) => x.done); const lastEx = ei === a.ex.length - 1;
   if (exDone && (lastEx || a.ex.every((q) => q.sets.every((x) => x.done)))) { openOv({ mode: 'last', ei: ei, si: si }); return; }
   let nextLbl, next, nextX = null;
-  if (!exDone) { nextLbl = 'Prossima serie'; next = 'Serie ' + (e.sets.findIndex((x) => !x.done) + 1) + ' di ' + e.sets.length + ' · ' + EX[e.x].n; }
+  if (!exDone) { const ni = e.sets.findIndex((x) => !x.done); const tg = e.sets[ni].t != null ? e.sets[ni].t : e.sets[ni].v; nextLbl = 'Prossima: serie ' + (ni + 1) + ' di ' + e.sets.length; next = (e.u === 's' ? 'Tieni ' + tg + ' secondi' : 'Fai ' + tg + ' ripetizioni') + (e.side ? ' per lato' : ''); }
   else { const nIdx = a.ex.findIndex((q, i) => i > ei && q.sets.some((x) => !x.done)); const n = a.ex[nIdx >= 0 ? nIdx : Math.min(ei + 1, a.ex.length - 1)]; nextLbl = 'Prossimo esercizio'; next = EX[n.x].n; nextX = n.x; }
   const total = e.rest; const end = Date.now() + total * 1000;
   a.timer = { end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX }; save();
@@ -190,7 +190,7 @@ function startSession(wid, check) {
     const pr = S.prog[s.key]; const last = pr && pr.id === s.x && pr.last ? pr.last : null;
     return { slot: s.slot, id: s.id, key: s.key, l: s.l, x: s.x, r: s.r, rSlot: s.rSlot, rest: s.rest, side: s.side, note: s.note, u: s.u,
       load: pr && pr.load ? pr.load : null, adapt: notes.length ? 'Adattato oggi: ' + plural(s.sets - n, 'serie', 'serie') + ' in meno (' + notes.join(', ') + ')' : '',
-      sets: Array.from({ length: n }, (_, k) => ({ v: last && last[k] != null ? last[k] : s.r[0], done: false, rir: null })) };
+      sets: Array.from({ length: n }, (_, k) => { const tg = setTarget(s.r, s.u, last, k); return { v: tg, t: tg, done: false, rir: null }; }) };
   });
   S.active = { wid: wid, wname: W.name, start: Date.now(), pausedMs: 0, pausedAt: null, idx: 0, check: check, ex: ex, timer: null, deload: deload, phase: 'main', rt: null };
   save(); keepAwake(true); closeSheet(); go('session');
@@ -321,7 +321,7 @@ const A = {
   },
   lvl: (t) => {
     const e = curEx(); const nx = nextAvail(e.x, P(), +t.dataset.v); if (!nx) return;
-    e.x = nx; e.u = EX[nx].u; e.r = rangeFor(nx, e.rSlot, P()); e.sets.forEach((s) => { if (!s.done) s.v = e.r[0]; });
+    e.x = nx; e.u = EX[nx].u; e.r = rangeFor(nx, e.rSlot, P()); e.sets.forEach((s, k) => { if (!s.done) { s.t = setTarget(e.r, e.u, null, k); s.v = s.t; } });
     S.prog[e.key] = { id: nx, last: null, hits: 0, low: 0, load: e.load || null }; save(); render();
     toast('Variante: ' + EX[nx].n);
   },

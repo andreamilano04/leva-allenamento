@@ -100,6 +100,11 @@ test('Backup corrotto: dati non validi scartati, app utilizzabile', () => {
 test('File non riconosciuto rifiutato', () => { eq(R('upgrade')({ ciao: 1 }), null); eq(R('upgrade')(null), null); });
 test('Nuovo profilo: nessuna attrezzatura data per scontata', () => { const e = R('defaultEquip()'); ok(Object.values(e).every((v) => v === false)); });
 
+console.log('\nObiettivi delle serie');
+test('Prima volta: obiettivo facile dentro il range', () => { eq(R('setTarget')([8, 15], '', null, 0), 10); eq(R('setTarget')([6, 12], '', null, 0), 8); eq(R('setTarget')([30, 60], 's', null, 0), 30); });
+test('Volte successive: stesso obiettivo per tutte le serie (peggiore + 1), massimo del range', () => { eq(R('setTarget')([8, 15], '', [12, 11, 10, 9], 0), 10); eq(R('setTarget')([8, 15], '', [12, 11, 10, 9], 3), 10); eq(R('setTarget')([8, 15], '', [15, 15], 0), 15); eq(R('setTarget')([8, 15], '', [5], 0), 8); eq(R('setTarget')([8, 15], '', [12, null], 2), 13); eq(R('setTarget')([30, 60], 's', [40], 0), 45); });
+test('Frase semplice', () => { vm.runInContext("var plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);", ctx); eq(R('doTxt')(3, 10, '', true, 'squat'), '3 serie da 10 ripetizioni per gamba'); eq(R('doTxt')(3, 30, 's', false, 'core'), '3 serie da 30 secondi'); });
+
 console.log('\nIMC');
 test('IMC calcolato correttamente', () => { ok(Math.abs(R('bmi')(65.5, 175) - 21.39) < 0.01); });
 test('Fasce IMC', () => { eq(R('bmiCat')(18.4).n, 'Sottopeso'); eq(R('bmiCat')(18.5).n, 'Normopeso'); eq(R('bmiCat')(24.99).n, 'Normopeso'); eq(R('bmiCat')(25).n, 'Sovrappeso'); eq(R('bmiCat')(30).n, 'Obesità'); });

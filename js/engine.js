@@ -335,3 +335,22 @@ function calPlan(p, st, weeks) {
   }
   return out;
 }
+
+/* Obiettivo concreto per una serie (un numero, non un intervallo).
+   Prima volta: un valore facile del range (circa 1/4 sopra il minimo; per gli esercizi a tempo il minimo).
+   Volte successive: una ripetizione (o 5 secondi) in più della serie peggiore dell'ultima volta,
+   uguale per tutte le serie, senza superare il massimo. */
+function setTarget(r, u, last, k) {
+  const step = u === 's' ? 5 : 1;
+  // Stesso obiettivo per tutte le serie: la serie peggiore dell'ultima volta, più uno.
+  const done = (last || []).filter((v) => v != null); const prev = done.length ? Math.min.apply(null, done) : null;
+  if (prev != null) return Math.max(r[0], Math.min(r[1], prev + step));
+  if (u === 's') return r[0];
+  return r[0] + Math.round((r[1] - r[0]) * 0.25);
+}
+/* Frase semplice su cosa fare: "3 serie da 10 ripetizioni per lato". */
+function doTxt(n, t, u, side, l) {
+  const what = u === 's' ? t + ' secondi' : t + ' ripetizioni';
+  const sideTxt = side ? (['squat', 'lunge', 'hinge', 'glute_single', 'calf', 'calf_floor', 'squat_tempo'].indexOf(l) >= 0 ? ' per gamba' : ' per lato') : '';
+  return plural(n, 'serie', 'serie') + ' da ' + what + sideTxt;
+}

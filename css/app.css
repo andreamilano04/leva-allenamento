@@ -356,3 +356,23 @@ body.full #tabbar{display:none}
 .addbtn{position:relative;display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--r2);background:var(--s2);border:1.5px dashed var(--s4);cursor:pointer;margin-bottom:6px}
 .addbtn .f{display:flex;flex-direction:column}
 .addbtn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
+/* Sessione: cosa fare, serie corrente */
+.todo{background:var(--s1);border:1.5px solid var(--acd2);border-radius:var(--r);padding:16px 18px;margin-top:14px}
+.todo-main{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:6px 0 10px;line-height:1.2}
+.todo-list{margin:0;padding-left:18px;font-size:14px;color:var(--tx2);display:flex;flex-direction:column;gap:6px}
+.todo-list b{color:var(--tx)}
+.now{background:linear-gradient(160deg,#1C2210,#151517 70%);border:1px solid rgba(196,240,58,.25);border-radius:var(--r);padding:18px;margin-top:12px}
+.now-h{display:flex;justify-content:space-between;align-items:center}
+.sdots{display:flex;gap:5px}.sdots i{width:9px;height:9px;border-radius:50%;background:var(--s4)}.sdots i.on{background:var(--ac)}.sdots i.cur{background:transparent;border:2px solid var(--ac)}
+.now-goal{font-size:26px;font-weight:600;margin:10px 0 14px;letter-spacing:-.02em}
+.now-goal b{font-size:44px;color:var(--ac);font-weight:800;vertical-align:-4px;margin:0 2px}
+.now-goal span{font-size:17px;color:var(--tx2)}
+.now-adj{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.btn.big{height:62px;font-size:18px}
+.btn.black-ac{background:var(--s3);color:var(--ac);border:1px solid var(--acd2)}
+.slist{margin-top:12px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r2);padding:4px 14px}
+.srow{display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line);font-size:14px;color:var(--mu)}
+.srow:first-child{border-top:0}
+.srow b{font-weight:600;color:var(--tx2)}.srow small{font-weight:500;color:var(--mu)}
+.srow.ok b{color:var(--ac)}.srow.cur span,.srow.cur b{color:var(--tx)}
