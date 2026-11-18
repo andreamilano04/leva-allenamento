@@ -70,12 +70,11 @@ function resolveSlot(slot, p, st, wid, used) {
   if (p.level === 'beg' && sets >= 4) sets = 3;
   if (p.level === 'adv' && slot.pri === 1 && sets < 4) sets = 4;
   const r = rangeFor(x, src.r, p);
-  let rest = src.rest;
+  let rest = restFor(lad, slot.pri);
   if (p.obj === 'str' && slot.pri === 1) rest = Math.min(180, rest + 30);
   if (p.obj === 'end') rest = Math.max(30, rest - 30);
   if (p.obj === 'fit') rest = Math.max(45, rest - 15);
   if (over.sets) sets = clamp(over.sets, 1, 6);
-  const pref = st.prefs[src.id]; if (pref && pref.rest) rest = clamp(pref.rest, 15, 300);
   return { slot: slot.id, id: src.id, key: key, l: lad, x: x, sets: sets, r: r, rSlot: src.r.slice(), rest: rest, side: !!slot.side, note: src === slot ? slot.note : '',
     pri: slot.pri || 2, u: e.u, wid: wid, swapped: lad !== slot.l && src === slot, baseSets: sets };
 }
@@ -88,11 +87,26 @@ function rangeFor(x, slotR, p) {
 }
 
 /* Stima realistica: tempo di lavoro + recuperi (dopo l'ultima serie non c'è recupero) + cambio esercizio. */
+/* Recuperi decisi dal programma, come farebbe un personal trainer (obiettivo massa).
+   Le ricerche indicano un piccolo vantaggio per la crescita oltre i 60 s e nessuna differenza
+   apprezzabile oltre i 90 s (Singer et al., 2024): multiarticolari 90 s, isolamento 75 s,
+   polpacci/core 60 s, collo 45 s. Con l'obiettivo forza i principali salgono a 120 s. */
+const COMPOUND = ['push_h', 'push_v', 'row', 'row_bp', 'row_band', 'pulldown_band', 'pull', 'chin', 'squat', 'squat_tempo', 'lunge', 'hinge', 'dip', 'tri_bw'];
+function restFor(lad, pri) {
+  if (/^neck_/.test(lad)) return 45;
+  if (['core', 'hang_core', 'calf', 'calf_floor', 'shrug_bp'].indexOf(lad) >= 0) return 60;
+  if (COMPOUND.indexOf(lad) >= 0) return 90;
+  return 75;
+}
+/* Pausa tra un esercizio e il successivo: almeno 90 s per prepararsi. */
+function restBetween(rest) { return Math.max(rest, 90); }
+/* Stima realistica della durata: tempo sotto sforzo (dal ritmo), recuperi tra le serie
+   e pausa prima dell'esercizio successivo: tutto conta nel tempo totale. */
 function estSlot(s) {
-  const mid = (s.r[0] + s.r[1]) / 2;
-  let work = s.u === 's' ? mid + 5 : mid * 3 + 5;
-  if (s.side) work *= 2;
-  return s.sets * work + (s.sets - 1) * s.rest + 45;
+  const tg = s.u === 's' ? s.r[0] : s.r[0] + Math.round((s.r[1] - s.r[0]) * 0.25);
+  let work = s.u === 's' ? tg + 5 : tg * tempoPhases(tempoOf(s.x)).reduce((t, p) => t + p.s, 0) + 8;
+  if (s.side) work = work * 2 + 5;
+  return s.sets * work + (s.sets - 1) * s.rest + restBetween(s.rest);
 }
 function estMin(slots) { return Math.round(slots.reduce((t, s) => t + estSlot(s), 0) / 60); }
 

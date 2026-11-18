@@ -54,10 +54,11 @@ test('Ogni scheda ha almeno 4 esercizi, anche a solo corpo libero', () => {
 test('La durata stimata rispetta quella scelta (±5 min)', () => {
   [30, 45, 60].forEach((dur) => prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], dur)).workouts.forEach((w) => ok(w.min <= dur + 5, w.wid + ': ' + w.min + ' min con durata ' + dur)));
 });
-test('Il volume settimanale non lascia muscoli importanti scoperti', () => {
-  const m = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 45)));
-  ['pet', 'dor', 'qua', 'glu'].forEach((k) => ok(m[k] >= 8, k + ' = ' + m[k]));
-  ['fem', 'pol', 'core'].forEach((k) => ok(m[k] >= 4, k + ' = ' + m[k]));
+test('Volume: i grandi muscoli sempre coperti, il programma completo a 60 minuti', () => {
+  const m45 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 45)));
+  ['pet', 'dor', 'qua', 'glu'].forEach((k) => ok(m45[k] >= 8, '45 min: ' + k + ' = ' + m45[k])); ok(m45.fem >= 6, '45 min: femorali');
+  const m60 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 60)));
+  ['fem', 'pol', 'core'].forEach((k) => ok(m60[k] >= 4, '60 min: ' + k + ' = ' + m60[k]));
 });
 test('Le zone da proteggere escludono gli esercizi che le sollecitano', () => {
   const EX = R('EX');

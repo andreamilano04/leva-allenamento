@@ -128,7 +128,7 @@ const ANIMS = {
   bridge_single: { a: { hip: [66, 98], t: -87.8, fF: [86, 101, 'u'], fB: [96, 86, 'u'], tB: 150, aF: [88, 90], aB: [86, 90] }, b: { hip: [66, 84], t: -60, fB: [101, 69, 'u'] } },
   hipthrust: { props: [{ k: 'sofa', x: 6, y: 80, w: 40, back: 'l' }], a: { hip: [64, 96], t: -126.9, h: -20, fF: [88, 101, 'u'], fB: [86, 82, 'u'], tB: 150, aF: [-150, -120], aB: [-145, -115] }, b: { hip: [70, 79], t: -91.9, h: 0, fB: [98, 62, 'u'], aF: [-120, -95], aB: [-115, -90] } },
   legcurl: { props: [{ k: 'towel', j: 'ankleF' }], a: { hip: [66, 88], t: -68.5, fF: [102, 100, 'u'], fB: [101, 100, 'u'], tF: 160, tB: 160, aF: [90, 90], aB: [88, 90] }, b: { hip: [64, 85], t: -61.7, fF: [82, 100, 'u'], fB: [81, 100, 'u'], tF: 120, tB: 120 } },
-  nordic: { props: [{ k: 'sofa', x: 18, y: 86, w: 36, back: 'l' }, { k: 'cushion', x: 62, y: 100, w: 18 }], a: { hip: [70, 81], t: 180, h: 0, fF: [52, 100, 'd'], fB: [51, 100, 'd'], tF: -90, tB: -90, aF: [40, 170], aB: [35, 165] }, b: { hip: [84.6, 87.8], t: 130, h: 0, aF: [110, 100], aB: [105, 95] } },
+  nordic: { inv: true, props: [{ k: 'sofa', x: 18, y: 86, w: 36, back: 'l' }, { k: 'cushion', x: 62, y: 100, w: 18 }], a: { hip: [70, 81], t: 180, h: 0, fF: [52, 100, 'd'], fB: [51, 100, 'd'], tF: -90, tB: -90, aF: [40, 170], aB: [35, 165] }, b: { hip: [84.6, 87.8], t: 130, h: 0, aF: [110, 100], aB: [105, 95] } },
   plank: { hold: true, a: { hip: [67.5, 90.9], t: 99.2, h: -10, hF: [112, 101, 'd'], hB: [110, 101, 'd'], fF: [30, 97, 'u'], fB: [29, 97, 'u'], tF: 15, tB: 15 }, b: { hip: [67.5, 91.5], t: 99 } },
   hollow: { hold: true, a: { hip: [80, 99], t: -101.5, h: -5, fF: [116, 90, 'u'], fB: [115, 91, 'u'], tF: 160, tB: 160, aF: [-100, -100], aB: [-98, -98] }, b: { hip: [80, 99], t: -103, fF: [116, 88, 'u'], fB: [115, 89, 'u'] } },
   lsit: { hold: true, props: [{ k: 'chair', x: 60, y: 74, w: 24, noBack: true }], a: { hip: [74, 74], t: 182, hF: [72, 73, 'b'], hB: [70, 73, 'b'], fF: [112, 76, 'u'], fB: [111, 76, 'u'], tF: 180, tB: 180 }, b: { hip: [74, 73], fF: [112, 74, 'u'], fB: [111, 74, 'u'] } },
@@ -140,14 +140,14 @@ const ANIMS = {
   t2b: { base: 'hangknee', b: { hip: [80, 44], t: 160, fF: [104, -2, 'u'], fB: [103, -1, 'u'], tF: 170, tB: 170 } },
   curl: { props: [{ k: 'band', a: 'toeF', b: 'handF' }], a: Object.assign({}, STAND, { hF: [83, 62, 'b'], hB: [79, 62, 'b'] }), b: Object.assign({}, STAND, { hF: [92, 37, 'd'], hB: [89, 38, 'd'] }) },
   curl_pack: { base: 'curl', props: [{ k: 'pack', j: 'handF' }] },
-  triext: { props: [{ k: 'band', a: 'ankleB', b: 'handF' }], a: Object.assign({}, STAND, { fB: [68, 101, 'f'], hF: [82, 4, 'u'], hB: [80, 4, 'u'] }), b: Object.assign({}, STAND, { fB: [68, 101, 'f'], hF: [70, 30, 'u'], hB: [69, 31, 'u'] }) },
+  triext: { inv: true, props: [{ k: 'band', a: 'ankleB', b: 'handF' }], a: Object.assign({}, STAND, { fB: [68, 101, 'f'], hF: [82, 4, 'u'], hB: [80, 4, 'u'] }), b: Object.assign({}, STAND, { fB: [68, 101, 'f'], hF: [70, 30, 'u'], hB: [69, 31, 'u'] }) },
   latraise: { front: true, props: [{ k: 'band', a: 'ankleF', b: 'handF' }, { k: 'band', a: 'ankleB', b: 'handB' }], a: { hip: [80, 63], t: 180, fF: [87, 101, 'f'], fB: [73, 101, 'b'], tF: 70, tB: 110, hF: [92, 62, 'f'], hB: [68, 62, 'b'] }, b: { hF: [116, 37, 'd'], hB: [44, 37, 'd'] } },
   facepull: { props: [{ k: 'door', x: 140, y: 32 }, { k: 'band', a: [139, 32], b: 'handF' }], a: Object.assign({}, STAND, { hF: [108, 36, 'd'], hB: [107, 37, 'd'] }), b: Object.assign({}, STAND, { hF: [90, 25, 'u'], hB: [89, 26, 'u'] }) },
   bandrow: { props: [{ k: 'door', x: 140, y: 47 }, { k: 'band', a: [139, 47], b: 'handF' }], a: Object.assign({}, STAND, { t: 176, hF: [106, 46, 'd'], hB: [105, 47, 'd'] }), b: Object.assign({}, STAND, { t: 182, hF: [86, 51, 'b'], hB: [85, 52, 'b'] }) },
   pulldown: { props: [{ k: 'door', x: 140, y: -6 }, { k: 'band', a: [139, -6], b: 'handF' }], a: { hip: [78, 74], t: 178, fF: [60, 100, 'd'], fB: [59, 100, 'd'], tF: -90, tB: -90, hF: [96, 22, 'u'], hB: [95, 23, 'u'] }, b: { hip: [78, 74], t: 182, hF: [88, 40, 'd'], hB: [87, 41, 'd'] } },
   yraise: { a: { hip: [60, 97], t: 90, h: 8, fF: [22, 99, 'u'], fB: [21, 99, 'u'], tF: 0, tB: 0, hF: [118, 99, 'u'], hB: [117, 99, 'u'] }, b: { hip: [60, 97], t: 88, h: 0, hF: [116, 86, 'u'], hB: [115, 87, 'u'] } },
   pronew: { a: { hip: [60, 97], t: 90, h: 8, fF: [22, 99, 'u'], fB: [21, 99, 'u'], tF: 0, tB: 0, hF: [116, 90, 'u'], hB: [115, 91, 'u'] }, b: { hip: [60, 97], t: 88, h: 0, hF: [98, 88, 'b'], hB: [97, 89, 'b'] } },
-  pullover: { props: [{ k: 'pack', j: 'handF' }], a: { hip: [70, 97], t: -90, h: 0, fF: [96, 101, 'u'], fB: [95, 101, 'u'], hF: [41, 68, 'f'], hB: [40, 68, 'f'] }, b: { hip: [70, 97], t: -90, hF: [12, 92, 'u'], hB: [11, 92, 'u'] } },
+  pullover: { inv: true, props: [{ k: 'pack', j: 'handF' }], a: { hip: [70, 97], t: -90, h: 0, fF: [96, 101, 'u'], fB: [95, 101, 'u'], hF: [41, 68, 'f'], hB: [40, 68, 'f'] }, b: { hip: [70, 97], t: -90, hF: [12, 92, 'u'], hB: [11, 92, 'u'] } },
   calfstep: { props: [{ k: 'step', x: 82, y: 88, w: 40 }], a: { hip: [80, 52.4], t: 180, fF: [81, 90.4, 'f'], fB: [80, 90.4, 'f'], tF: 110, tB: 110, aF: [5, 5], aB: [0, 0] }, b: { hip: [84.6, 43.4], t: 180, fF: [85.6, 81.4, 'f'], fB: [84.6, 81.4, 'f'], tF: 20, tB: 20 } },
   calffloor: { a: { hip: [80, 63], t: 180, fF: [81, 101, 'f'], fB: [92, 92, 'f'], tF: 90, tB: 120, aF: [5, 5], aB: [0, 0] }, b: { hip: [83.5, 56.9], t: 180, fF: [84.5, 94.9, 'f'], fB: [95.5, 86, 'f'], tF: 30 } },
   dips: { props: [{ k: 'chair', x: 72, y: 72, w: 24, back: 'r' }], a: { hip: [84, 71], t: 180, h: 0, hF: [86, 70, 'b'], hB: [84, 70, 'b'], fF: [114, 100, 'u'], fB: [113, 100, 'u'], tF: 170, tB: 170 }, b: { hip: [82, 86], t: 176 } },
@@ -197,7 +197,7 @@ function animDef(key) {
   const b = animDef(d.base);
   const a = Object.assign({}, b.a, d.a || {});
   const bb = Object.assign({}, b.b, d.a || {}, d.b || {});
-  return { a: a, b: bb, hold: d.hold != null ? d.hold : b.hold, front: d.front || b.front, props: d.props || b.props };
+  return { a: a, b: bb, hold: d.hold != null ? d.hold : b.hold, front: d.front || b.front, props: d.props || b.props, inv: d.inv || b.inv };
 }
 
 function frameInner(key, k) {

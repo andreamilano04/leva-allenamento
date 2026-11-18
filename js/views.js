@@ -3,6 +3,9 @@
 
 const initial = (n) => (n ? n.trim().charAt(0).toUpperCase() : 'L');
 
+/* Durata totale prevista: esercizi, pause tra le serie e tra gli esercizi, riscaldamento e defaticamento. */
+function totalMin(W) { return W.min + (S.settings.warm !== false ? routineMin('warm') : 0) + (S.settings.cool !== false ? routineMin('cool') : 0); }
+
 /* ---------- Oggi ---------- */
 function vHome() {
   const p = S.profile; const pr = program(p, S); const wp = weekPlan(p, S); const td = wp.find((d) => d.today);
@@ -88,7 +91,7 @@ function heroWorkout(W, label, isNext) {
   const mn = matchNear(S.profile, today()); const dl = deloadStatus(S.profile, S).active;
   const notes = []; if (mn) notes.push('⚽ Partita ' + mn + ': gambe alleggerite'); if (dl) notes.push('Settimana di scarico: una serie in meno');
   return '<section class="hero"><span class="big">' + esc(W.wid) + '</span><div class="eyebrow">' + esc(label) + '</div><h2>' + esc(W.name) + '</h2>' + (notes.length ? '<p class="sub" style="font-weight:600">' + esc(notes.join(' · ')) + '</p>' : '') +
-    '<div class="meta"><span>' + ICON.clock + '~' + W.min + ' min</span><span>' + ICON.dumb + plural(W.slots.length, 'esercizio', 'esercizi') + '</span><span>' + ICON.repeat + W.sets + ' serie</span></div>' +
+    '<div class="meta"><span>' + ICON.clock + '~' + totalMin(W) + ' min</span><span>' + ICON.dumb + plural(W.slots.length, 'esercizio', 'esercizi') + '</span><span>' + ICON.repeat + W.sets + ' serie</span></div>' +
     '<button class="btn black" data-a="start" data-v="' + W.wid + '">' + ICON.play + 'Inizia allenamento</button>' +
     '<div class="sp10"></div><button class="link" style="color:rgba(11,12,5,.7);width:100%;position:relative" data-a="openWorkout" data-v="' + W.wid + '">Vedi gli esercizi</button></section>';
 }
@@ -114,7 +117,7 @@ function vPlan() {
   h += '<div class="sec-h"><h3>Le tue schede</h3><span class="muted small">a rotazione</span></div>';
   const nw = nextWid(p, S);
   pr.workouts.forEach((w) => {
-    h += '<button class="item" data-a="openWorkout" data-v="' + w.wid + '"><span class="letter ' + (w.wid === nw ? 'solid' : '') + '">' + esc(w.wid) + '</span><div class="f"><div class="t">' + esc(w.name) + (w.wid === nw ? ' <span class="tag ac" style="margin-left:4px">prossima</span>' : '') + '</div><div class="s">~' + w.min + ' min · ' + w.slots.length + ' esercizi · ' + w.sets + ' serie</div><div class="s">' + w.muscles.map((m) => MUSCLES[m]).join(' · ') + '</div></div><span class="chev">' + ICON.chevR + '</span></button>';
+    h += '<button class="item" data-a="openWorkout" data-v="' + w.wid + '"><span class="letter ' + (w.wid === nw ? 'solid' : '') + '">' + esc(w.wid) + '</span><div class="f"><div class="t">' + esc(w.name) + (w.wid === nw ? ' <span class="tag ac" style="margin-left:4px">prossima</span>' : '') + '</div><div class="s">~' + totalMin(w) + ' min · ' + w.slots.length + ' esercizi · ' + w.sets + ' serie</div><div class="s">' + w.muscles.map((m) => MUSCLES[m]).join(' · ') + '</div></div><span class="chev">' + ICON.chevR + '</span></button>';
   });
   const ms = muscleSets(pr); const zone = p.obj === 'end' ? [8, 16] : p.obj === 'str' ? [6, 14] : [10, 20];
   const maxv = Math.max(24, Math.max.apply(null, MUSCLE_ORDER.map((k) => ms[k])));
@@ -130,7 +133,7 @@ const fmtSets = (v) => (v % 1 ? fmt1(v) : String(v));
 
 function sheetWorkout(wid) {
   const p = S.profile; const w = resolveWorkout(wid, p, S);
-  let h = '<div class="row" style="margin-bottom:6px"><span class="letter solid">' + esc(wid) + '</span><div class="f"><h3>' + esc(w.name) + '</h3><div class="muted small">~' + w.min + ' min · ' + w.sets + ' serie</div></div></div>';
+  let h = '<div class="row" style="margin-bottom:6px"><span class="letter solid">' + esc(wid) + '</span><div class="f"><h3>' + esc(w.name) + '</h3><div class="muted small">~' + totalMin(w) + ' min in tutto · ' + w.sets + ' serie</div></div></div>';
   h += '<div class="sp10"></div>';
   w.slots.forEach((s, i) => {
     const e = EX[s.x]; const over = S.plan.over[s.slot] || {};
@@ -367,7 +370,7 @@ function vOnboard() {
   } else {
     const tmp = Object.assign(fresh(), { profile: d }); const pr = program(d, tmp);
     h += '<h1>Il tuo programma è pronto</h1><p class="muted" style="margin:8px 0 22px">' + esc(pr.name) + ' · ' + d.wdays.map((i) => WD[i]).join(', ') + ' · ~' + d.dur + ' min</p>' +
-      pr.workouts.map((w) => '<div class="item"><span class="letter solid">' + esc(w.wid) + '</span><div class="f"><div class="t">' + esc(w.name) + '</div><div class="s">' + w.slots.length + ' esercizi · ' + w.sets + ' serie · ~' + w.min + ' min</div><div class="s">' + w.slots.slice(0, 3).map((s) => esc(EX[s.x].n)).join(', ') + '…</div></div></div>').join('');
+      pr.workouts.map((w) => '<div class="item"><span class="letter solid">' + esc(w.wid) + '</span><div class="f"><div class="t">' + esc(w.name) + '</div><div class="s">' + w.slots.length + ' esercizi · ' + w.sets + ' serie · ~' + (w.min + (ob.d && S.settings.warm !== false ? routineMin('warm') + routineMin('cool') : 0)) + ' min</div><div class="s">' + w.slots.slice(0, 3).map((s) => esc(EX[s.x].n)).join(', ') + '…</div></div></div>').join('');
     h += '<div class="sp16"></div><section class="card"><h4 style="margin-bottom:8px">Prima di iniziare</h4><p class="muted small">' + esc(SAFETY[0][2]) + ' ' + esc(SAFETY[1][2]) + ' ' + esc(SAFETY[2][2]) + '</p></section>' +
       '<button class="opt ' + (ob.safe ? 'on' : '') + '" data-a="obSafe"><div class="f"><b>Ho letto e ho capito</b><span class="muted small">Mi alleno sotto la mia responsabilità e mi fermo se sento dolore.</span></div><span class="ck">' + ICON.check + '</span></button>';
   }
@@ -383,48 +386,47 @@ function vSession() {
   const a = S.active; const e = a.ex[a.idx]; const x = EX[e.x]; const L = LADDERS[x.l]; const u = x.u;
   const doneSets = a.ex.reduce((t, q) => t + q.sets.filter((s) => s.done).length, 0); const all = a.ex.reduce((t, q) => t + q.sets.length, 0);
   const tg = (s) => (s.t != null ? s.t : s.v);
-  const cur = e.sets.findIndex((s) => !s.done); const n = e.sets.length; const sideWord = /per gamba/.test(doTxt(1, 1, u, true, x.l)) ? 'gamba' : 'lato';
+  const cur = e.sets.findIndex((s) => !s.done); const n = e.sets.length; const lastEx = a.idx === a.ex.length - 1;
+  const sideWord = /per gamba/.test(doTxt(1, 1, u, true, x.l)) ? 'gamba' : 'lato';
+  const t0 = tg(e.sets[cur >= 0 ? cur : 0]); const tp = tempoOf(e.x);
+  const restTxt = (sec) => (sec >= 60 && sec % 60 === 0 ? (sec / 60) + (sec === 60 ? ' minuto' : ' minuti') : sec >= 60 ? '1 min e ' + (sec - 60) + ' s' : sec + ' secondi');
   let h = '<div class="sess-top"><button class="icon-btn" data-a="sessMenu" aria-label="Menu allenamento">' + ICON.x + '</button><div><div class="eyebrow center">' + esc(a.wname) + '</div><div class="clock" id="elapsed">' + mmss(elapsedSec()) + '</div></div>' +
     '<button class="icon-btn" data-a="pause" aria-label="Pausa">' + ICON.pause + '</button></div>';
   h += '<div class="prog-top"><i style="width:' + (all ? doneSets / all * 100 : 0).toFixed(1) + '%"></i></div>';
-  h += '<div class="row"><div class="f"><div class="eyebrow">Esercizio ' + (a.idx + 1) + ' di ' + a.ex.length + '</div></div><button class="link" data-a="exList">Tutti gli esercizi</button></div>';
+  h += '<div class="row"><div class="f"><div class="eyebrow">' + (e.neck ? 'Collo · ' : '') + 'Esercizio ' + (a.idx + 1) + ' di ' + a.ex.length + '</div></div><button class="link" data-a="exList">Tutti gli esercizi</button></div>';
   h += '<h1 class="ex-name">' + esc(x.n) + '</h1>';
-  // Cosa devi fare (in breve)
-  const t0 = tg(e.sets[cur >= 0 ? cur : 0]);
-  const restTxt = e.rest >= 60 && e.rest % 60 === 0 ? (e.rest / 60) + (e.rest === 60 ? ' minuto' : ' minuti') : e.rest + ' secondi';
-  const tp = tempoOf(e.x); const lastEx = a.idx === a.ex.length - 1;
-  h += '<section class="todo"><div class="eyebrow" style="color:var(--ac)">' + (e.neck ? 'Collo · ' : '') + 'Cosa devi fare</div><div class="todo-main">' + esc(doTxt(n, t0, u, e.side, x.l)) + '</div>' +
-    '<div class="todo-rows">' +
-    (u === 's' ? '<div><span>' + ICON.clock + '</span><b>Tieni la posizione</b> per il tempo indicato, respirando normalmente</div>' : '<div><span>' + ICON.repeat + '</span><b>Ritmo:</b> ' + esc(tempoTxt(tp)) + '</div>') +
-    '<div><span>' + ICON.pause + '</span><b>Riposo:</b> ' + restTxt + ' tra una serie e l’altra' + (lastEx ? '' : ', poi passi al prossimo esercizio') + '</div>' +
-    '<div><span>' + ICON.target + '</span>' + esc(e.neck ? 'Collo: forza moderata, movimenti lenti. Fermati subito se senti dolore o giramenti di testa.' : GOAL_HOW[S.profile.obj] || GOAL_HOW.hyp) + '</div></div></section>';
+
+  // 1. L'omino che lo esegue
+  h += animBox(e.x);
+
+  // 2. Come eseguirlo
+  h += '<section class="todo"><div class="eyebrow" style="color:var(--ac)">Come eseguirlo</div><div class="todo-rows" style="margin-top:10px">' +
+    '<div><span>' + ICON.target + '</span><div><b>Intensità:</b> ' + esc(e.neck ? 'forza moderata, movimenti lenti; fermati se senti dolore o giramenti di testa.' : (GOAL_HOW[S.profile.obj] || GOAL_HOW.hyp).replace(/^[^:]+: /, '')) + '</div></div>' +
+    (u === 's' ? '<div><span>' + ICON.clock + '</span><div><b>Posizione:</b> tienila ferma, respirando normalmente.</div></div>' : '<div><span>' + ICON.repeat + '</span><div><b>Ritmo:</b> ' + esc(tempoTxt(tp)) + '</div></div>') +
+    (e.side ? '<div><span>' + ICON.swap + '</span><div><b>Per ' + sideWord + ':</b> prima tutte le ripetizioni con un' + (sideWord === 'gamba' ? 'a gamba' : ' lato') + ', poi con l’altr' + (sideWord === 'gamba' ? 'a' : 'o') + ' = 1 serie.</div></div>' : '') +
+    '</div></section>';
   if (e.adapt) h += '<p class="adapt">' + esc(e.adapt) + '</p>';
 
-  // Serie corrente
+  // 3. Quanto: serie, ripetizioni, riposo e serie corrente
+  h += '<section class="now' + (cur < 0 ? ' done' : '') + '"><div class="now-plan">' + esc(doTxt(n, t0, u, e.side, x.l)) + '</div>' +
+    '<div class="muted small">Riposo: ' + restTxt(e.rest) + ' tra le serie' + (lastEx ? '' : ' · ' + restTxt(restBetween(e.rest)) + ' prima del prossimo esercizio') + '</div>' +
+    '<div class="now-h" style="margin-top:14px"><span class="eyebrow">' + (cur >= 0 ? 'Adesso: serie ' + (cur + 1) + ' di ' + n : 'Esercizio completato') + '</span><span class="sdots">' + e.sets.map((q, k) => '<i class="' + (q.done ? 'on' : k === cur ? 'cur' : '') + '"></i>').join('') + '</span></div>';
   if (cur >= 0) {
     const s = e.sets[cur];
-    h += '<section class="now"><div class="now-h"><span class="eyebrow">Serie ' + (cur + 1) + ' di ' + n + '</span><span class="sdots">' + e.sets.map((q, k) => '<i class="' + (q.done ? 'on' : k === cur ? 'cur' : '') + '"></i>').join('') + '</span></div>' +
-      '<div class="now-goal">' + (u === 's' ? 'Tieni <b>' + tg(s) + '</b> secondi' : 'Fai <b>' + tg(s) + '</b> ripetizioni') + (e.side ? ' <span>per ' + sideWord + '</span>' : '') + '</div>' +
-      (u === 's' ? '<button class="btn black-ac" data-a="holdStart" data-s="' + cur + '">' + ICON.play + 'Avvia il timer</button><div class="sp10"></div>' : (tp.neg ? '' : '<button class="btn black-ac" data-a="tempoStart" data-s="' + cur + '">' + ICON.play + 'Guidami il ritmo</button><div class="sp10"></div>')) +
-      '<div class="now-adj"><span class="muted small">' + (u === 's' ? 'Secondi fatti' : 'Quante ne hai fatte?') + '</span><div class="stepper" style="flex:none"><button data-a="step" data-s="' + cur + '" data-v="-1" aria-label="Meno">' + ICON.minus + '</button><span class="v">' + s.v + '</span><button data-a="step" data-s="' + cur + '" data-v="1" aria-label="Più">' + ICON.plus + '</button></div></div>' +
-      '<button class="btn primary big" data-a="setDone" data-s="' + cur + '">' + ICON.check + 'Serie fatta' + (s.v !== tg(s) ? ' · ' + s.v + (u === 's' ? ' s' : ' rip') : '') + '</button></section>';
-  } else {
-    h += '<section class="now done"><div class="now-h"><span class="eyebrow">Esercizio completato</span><span class="sdots">' + e.sets.map(() => '<i class="on"></i>').join('') + '</span></div><div class="now-goal">' + ICON.check.replace('<svg', '<svg width="26" height="26" style="vertical-align:-5px;color:var(--ac)"') + ' Ben fatto!</div>' +
-      (a.idx < a.ex.length - 1 ? '<button class="btn primary big" data-a="exNav" data-v="1">Prossimo esercizio' + ICON.chevR + '</button>' : '<button class="btn primary big" data-a="finishAsk">' + ICON.check + 'Termina allenamento</button>') + '</section>';
-  }
-  // Riepilogo serie
+    h += '<div class="now-goal">' + (u === 's' ? 'Tieni <b>' + tg(s) + '</b> secondi' : 'Fai <b>' + tg(s) + '</b> ripetizioni') + (e.side ? ' <span>per ' + sideWord + '</span>' : '') + '</div>' +
+      (u === 's' ? '<button class="btn black-ac" data-a="holdStart" data-s="' + cur + '">' + ICON.play + 'Avvia il timer</button>' : (tp.neg ? '' : '<button class="btn black-ac" data-a="tempoStart" data-s="' + cur + '">' + ICON.play + 'Guidami il ritmo (con la voce)</button>')) +
+      '<div class="now-adj"><span class="muted small">' + (u === 's' ? 'Secondi fatti' : 'Ne hai fatte di più o di meno? Correggi:') + '</span><div class="stepper" style="flex:none"><button data-a="step" data-s="' + cur + '" data-v="-1" aria-label="Meno">' + ICON.minus + '</button><span class="v">' + s.v + '</span><button data-a="step" data-s="' + cur + '" data-v="1" aria-label="Più">' + ICON.plus + '</button></div></div>';
+  } else h += '<div class="now-goal" style="margin-bottom:0">' + ICON.check.replace('<svg', '<svg width="26" height="26" style="vertical-align:-5px;color:var(--ac)"') + ' ' + e.sets.map((q) => q.v).join(' · ') + (u === 's' ? ' s' : ' rip') + '</div>';
+  h += '</section>';
+
+  // 4. Tutto il resto
   h += '<div class="slist">' + e.sets.map((s, k) => '<div class="srow ' + (s.done ? 'ok' : k === cur ? 'cur' : '') + '"><span>Serie ' + (k + 1) + '</span><b>' + (s.done ? s.v + (u === 's' ? ' s' : ' rip') + (s.rir != null ? ' <small>· ' + (s.rir >= 4 ? '4+' : s.rir) + ' in serbo</small>' : '') : 'obiettivo ' + tg(s) + (u === 's' ? ' s' : '')) + '</b>' +
     (s.done ? '<button class="link small" data-a="setDone" data-s="' + k + '">Annulla</button>' : '<span></span>') + '</div>').join('') + '</div>';
-  h += animBox(e.x, 'sm');
-  h += '<ul class="todo-list" style="margin-top:12px">' + (u === 's' ? '<li>Tocca <b>Avvia il timer</b>, tieni la posizione e poi segna la serie.</li>' : '<li>Fai le ripetizioni con calma e buona tecnica, poi tocca <b>Serie fatta</b>.</li>') +
-    (e.side ? '<li>Per ' + sideWord + ': prima tutte con un' + (sideWord === 'gamba' ? 'a gamba' : ' lato') + ', poi con l’altr' + (sideWord === 'gamba' ? 'a' : 'o') + '. Insieme contano come 1 serie.</li>' : '') +
-    '<li>' + (u === 's' ? 'Se non ce la fai, fermati prima e segna i secondi fatti.' : 'Se ce la fai puoi arrivare fino a ' + e.r[1] + '; se non arrivi a ' + t0 + ', segna quante ne hai fatte: va bene lo stesso.') + '</li></ul>';
   const hist = exHistory(e.x, S); const last = hist[hist.length - 1];
   if (last) h += '<p class="muted small" style="margin:10px 4px 0">' + ICON.target.replace('<svg', '<svg width="14" height="14" style="vertical-align:-2px"') + ' L’ultima volta (' + fmtD(last.d) + '): ' + last.reps.map((r) => (r == null ? '–' : r)).join(' · ') + (u === 's' ? ' secondi' : ' ripetizioni') + '</p>';
-
-  // Come si fa e opzioni
-  h += '<div class="sec-h"><h3>Come si fa</h3><button class="link" data-a="openEx" data-v="' + e.x + '" data-ctx="s">Istruzioni complete</button></div><p class="desc" style="margin-top:0">' + esc(x.d) + '</p>';
+  h += '<div class="sec-h"><h3>Altre informazioni</h3><button class="link" data-a="openEx" data-v="' + e.x + '" data-ctx="s">Istruzioni complete</button></div><p class="desc" style="margin-top:0">' + esc(x.d) + '</p>';
   if (e.note) h += '<p class="note">' + esc(e.note) + '</p>';
+  h += '<ul class="todo-list" style="margin-top:10px"><li>' + (u === 's' ? 'Se non ce la fai, fermati prima e segna i secondi fatti.' : 'Se ce la fai puoi arrivare fino a ' + e.r[1] + '; se non arrivi a ' + t0 + ', segna quante ne hai fatte: va bene lo stesso.') + '</li><li>Il timer del recupero parte da solo dopo ogni serie.</li></ul>';
   if (x.eq.indexOf('backpack') >= 0) h += '<div class="load"><div class="f">Peso nello zaino <span class="muted tiny">(facoltativo)</span></div><div class="stepper" style="flex:none"><button data-a="loadStep" data-v="-0.5" aria-label="Meno peso">' + ICON.minus + '</button><span class="v" style="font-size:19px;min-width:64px">' + (e.load ? fmt1(e.load) : '–') + '<small>kg</small></span><button data-a="loadStep" data-v="0.5" aria-label="Più peso">' + ICON.plus + '</button></div></div>';
   const ids = L.lv.map((l) => l.id);
   if (ids.length > 1) {
@@ -433,9 +435,13 @@ function vSession() {
       '<button class="btn ghost xs f" data-a="lvl" data-v="-1" ' + (prev ? '' : 'disabled') + '>' + ICON.down + 'Più facile</button><span class="tag">Livello ' + (x.i + 1) + ' di ' + ids.length + '</span>' +
       '<button class="btn ghost xs f" data-a="lvl" data-v="1" ' + (next ? '' : 'disabled') + '>' + ICON.up + 'Più difficile</button></div></section>';
   }
-
-  h += '<div class="foot"><div class="in">' + (a.idx > 0 ? '<button class="btn ghost" data-a="exNav" data-v="-1" aria-label="Esercizio precedente">' + ICON.chevL + '</button>' : '') +
-    (lastEx ? '<button class="btn ' + (cur >= 0 ? 'ghost' : 'primary') + '" data-a="finishAsk">' + ICON.check + 'Termina allenamento</button>' : '<button class="btn ' + (cur >= 0 ? 'ghost' : 'primary') + '" data-a="exNav" data-v="1">Prossimo esercizio' + ICON.chevR + '</button>') + '</div></div>';
+  // Barra fissa: l'azione principale è sempre visibile
+  const back = a.idx > 0 ? '<button class="btn ghost" data-a="exNav" data-v="-1" aria-label="Esercizio precedente">' + ICON.chevL + '</button>' : '';
+  let main;
+  if (cur >= 0) { const s = e.sets[cur]; main = '<button class="btn primary" data-a="setDone" data-s="' + cur + '">' + ICON.check + 'Serie ' + (cur + 1) + ' fatta · ' + s.v + (u === 's' ? ' s' : ' rip') + '</button>'; }
+  else if (lastEx) main = '<button class="btn primary" data-a="finishAsk">' + ICON.check + 'Termina allenamento</button>';
+  else main = '<button class="btn primary" data-a="exNav" data-v="1">Prossimo esercizio' + ICON.chevR + '</button>';
+  h += '<div class="foot"><div class="in">' + back + main + '</div></div>';
   return h;
 }
 

@@ -102,15 +102,18 @@ function openOv(o) {
   } else if (o.mode === 'hold') {
     h = '<div class="eyebrow">Tieni la posizione</div><div class="ring">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">0</b><span>obiettivo ' + o.target + ' s</span></div></div><div class="nexttx">' + esc(EX[S.active.ex[o.ei].x].n) + '</div><div class="sp24"></div><button class="btn primary" data-a="holdStop">' + ICON.stop + 'Stop e registra</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'tempo') {
-    h = '<div class="eyebrow" id="tSub">Preparati</div><div class="tphase" id="tPh">3</div><div class="tbar"><i id="tBar" style="width:0"></i></div>' +
-      '<div class="tcount" id="tCnt">0<small>/' + o.target + '</small></div><div class="muted small" id="tSide" style="margin:6px 0 26px">' + (o.side ? 'lato 1 di 2' : 'ripetizioni') + '</div>' +
-      '<div class="nexttx" style="margin-bottom:22px;font-size:16px">' + esc(EX[S.active.ex[o.ei].x].n) + '</div>' +
+    const ex = S.active.ex[o.ei];
+    h = '<div class="eyebrow">Serie ' + (o.si + 1) + ' di ' + ex.sets.length + ' · ritmo guidato</div><div class="nexttx" style="font-size:18px;margin-bottom:6px">' + esc(EX[ex.x].n) + '</div>' +
+      (o.key ? '<div class="anim sm" style="width:100%;margin:6px 0 10px"><svg id="tAnim" viewBox="0 -12 160 124" role="img" aria-label="Animazione sincronizzata">' + frameInner(o.key, 0) + '</svg></div>' : '') +
+      '<div class="tphase" id="tPh">3</div><div class="tbar"><i id="tBar" style="width:0"></i></div>' +
+      '<div class="trow"><div><div class="tcount" id="tCnt">0<small>/' + o.target + '</small></div><div class="muted small" id="tSide">' + (o.side ? 'ripetizioni · lato 1 di 2' : 'ripetizioni fatte') + '</div></div>' +
+      '<div><div class="tcount sm" id="tTime">0:00</div><div class="muted small">tempo della serie</div></div></div>' +
       '<button class="btn primary" data-a="tempoStop">' + ICON.check + 'Ho finito la serie</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'pause') {
     h = '<div class="letter" style="width:76px;height:76px;border-radius:50%;margin-bottom:18px">' + ICON.pause + '</div><h2>In pausa</h2><p class="muted center" style="margin:8px 0 26px">Il tempo dell’allenamento è fermo. I dati sono salvati: puoi anche chiudere l’app.</p><div class="clock" id="ovT" style="font-size:40px;margin-bottom:26px">0:00</div><button class="btn primary" data-a="unpause">' + ICON.play + 'Riprendi</button>';
   }
   b.innerHTML = h; $('#ov').classList.add('show'); syncHistory();
-  if (o.mode !== 'last') { ovIv = setInterval(tickOv, 250); tickOv(); }
+  if (o.mode !== 'last') { ovIv = setInterval(tickOv, o.mode === 'tempo' ? 50 : 250); tickOv(); }
 }
 function closeOv() { clearInterval(ovIv); ov = null; $('#ov').classList.remove('show'); if (S.active && S.active.timer) { S.active.timer = null; save(); } syncHistory(); }
 function tickOv() {
@@ -121,7 +124,7 @@ function tickOv() {
     if (t) t.textContent = mmss(left);
     if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - left / ov.total)).toFixed(1));
     if (left > 0 && left <= 3 && ov.said !== left) { ov.said = left; say(['', 'uno', 'due', 'tre'][left]); }
-    if (left <= 0) { buzz([200, 100, 200]); if (!say('Via!')) beep(3); closeOv(); toast('Recupero finito: prossima serie!'); render(); }
+    if (left <= 0) { buzz([200, 100, 200]); const nx = ov.next || ''; if (!say('Via! ' + nx)) beep(3); closeOv(); toast('Recupero finito: ' + (nx || 'prossima serie')); render(); }
   } else if (ov.mode === 'hold') {
     const el = Math.floor((Date.now() - ov.start) / 1000);
     if (t) t.textContent = el;
@@ -134,16 +137,18 @@ function tickOv() {
   }
 }
 function startRest(ei, si) {
+  /* La voce annuncia la pausa e cosa viene dopo, così non serve guardare il telefono. */
   const a = S.active; const e = a.ex[ei];
   const exDone = e.sets.every((x) => x.done); const lastEx = ei === a.ex.length - 1;
   if (exDone && (lastEx || a.ex.every((q) => q.sets.every((x) => x.done)))) { openOv({ mode: 'last', ei: ei, si: si }); return; }
   let nextLbl, next, nextX = null;
   if (!exDone) { const ni = e.sets.findIndex((x) => !x.done); const tg = e.sets[ni].t != null ? e.sets[ni].t : e.sets[ni].v; nextLbl = 'Prossima: serie ' + (ni + 1) + ' di ' + e.sets.length; next = (e.u === 's' ? 'Tieni ' + tg + ' secondi' : 'Fai ' + tg + ' ripetizioni') + (e.side ? ' per lato' : ''); }
   else { const nIdx = a.ex.findIndex((q, i) => i > ei && q.sets.some((x) => !x.done)); const n = a.ex[nIdx >= 0 ? nIdx : Math.min(ei + 1, a.ex.length - 1)]; nextLbl = 'Prossimo esercizio'; next = EX[n.x].n; nextX = n.x; }
-  const total = e.rest; const end = Date.now() + total * 1000;
+  const total = exDone ? restBetween(e.rest) : e.rest; const end = Date.now() + total * 1000;
   a.timer = { end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX }; save();
   openOv({ mode: 'rest', end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX });
-  if (nextX) say('Recupero. Prossimo esercizio: ' + next);
+  const secs = total >= 60 && total % 60 === 0 ? (total / 60 === 1 ? 'un minuto' : (total / 60) + ' minuti') : total >= 60 ? 'un minuto e ' + (total - 60) + ' secondi' : total + ' secondi';
+  say('Serie finita. Riposa ' + secs + '. ' + (nextX ? 'Poi: ' + next : next) + '.');
 }
 
 /* Aggiunge o toglie una partita in una data; aggiorna anche la bozza del profilo. */
@@ -201,25 +206,52 @@ function tempoState() {
   let w = t - r * rep, i = 0; while (w >= o.ph[i].s) { w -= o.ph[i].s; i++; }
   return { rep: r, ph: i, frac: w / o.ph[i].s, sideIdx: sideIdx };
 }
+function tempoPose(st) {
+  const o = ov; if (!o.key || st.pre || st.change || st.end) return 0;
+  const p = o.ph[st.ph]; const f = (1 - Math.cos(Math.PI * st.frac)) / 2; const push = o.w === 'push';
+  let k;
+  if (p.k === 'e') k = push ? f : 1 - f;
+  else if (p.k === 'c') k = push ? 1 - f : f;
+  else { const pr = o.ph[(st.ph - 1 + o.ph.length) % o.ph.length]; k = pr.k === 'e' ? (push ? 1 : 0) : (push ? 0 : 1); }
+  return o.inv ? 1 - k : k;
+}
 function tempoTick() {
   const o = ov; const st = tempoState(); const P = (id) => document.getElementById(id);
-  if (st.pre) { if (o.last !== 'pre' + st.pre) { o.last = 'pre' + st.pre; if (!say(String(st.pre))) tone(660); } P('tPh').textContent = st.pre; return; }
+  const an = P('tAnim'); if (an) an.innerHTML = frameInner(o.key, tempoPose(st));
+  const el = Math.max(0, (Date.now() - o.start) / 1000 - 3); const tt = P('tTime'); if (tt) tt.textContent = mmss(el);
+  if (st.pre) { if (o.last !== 'pre' + st.pre) { o.last = 'pre' + st.pre; if (!say(st.pre === 3 ? 'Pronto. 3' : String(st.pre))) tone(660); } P('tPh').textContent = st.pre; P('tPh').className = 'tphase h'; return; }
   if (st.end) { tempoFinish(o.target); return; }
-  if (st.change) { if (o.last !== 'chg') { o.last = 'chg'; if (!say('Cambia lato')) tone(440, 0.3); } P('tPh').textContent = 'Cambia'; P('tPh').className = 'tphase h'; P('tSub').textContent = 'Cambia lato'; P('tCnt').innerHTML = '0<small>/' + o.target + '</small>'; P('tSide').textContent = 'lato 2 di 2'; return; }
+  if (st.change) { if (o.last !== 'chg') { o.last = 'chg'; if (!say(o.target + '. Cambia lato')) tone(440, 0.3); } P('tPh').textContent = 'Cambia lato'; P('tPh').className = 'tphase h'; P('tBar').style.width = '0'; P('tCnt').innerHTML = '0<small>/' + o.target + '</small>'; P('tSide').textContent = 'ripetizioni · lato 2 di 2'; return; }
   const p = o.ph[st.ph]; const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
   if (o.last !== key) {
-    o.last = key; o.cnt = st.rep + (st.sideIdx ? 0 : 0); o.side2 = st.sideIdx;
-    if (st.ph === 0) { if (!say(String(st.rep + 1))) tone(880); } else tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.08);
+    o.last = key;
+    // La voce dice sempre cosa fare; a inizio ripetizione dice anche quante ne hai fatte.
+    const word = p.n.toLowerCase();
+    const txt = st.ph === 0 && st.rep > 0 ? st.rep + '. ' + word : word;
+    if (!say(txt)) tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.08);
+    buzz(25);
   }
-  P('tPh').textContent = p.n; P('tPh').className = 'tphase ' + p.k; P('tSub').textContent = 'Ripetizione ' + (st.rep + 1);
+  P('tPh').textContent = p.n; P('tPh').className = 'tphase ' + p.k;
   P('tBar').style.width = (st.frac * 100).toFixed(1) + '%';
   P('tCnt').innerHTML = st.rep + '<small>/' + o.target + '</small>';
-  if (o.side) P('tSide').textContent = 'lato ' + (st.sideIdx + 1) + ' di 2';
+  if (o.side) P('tSide').textContent = 'ripetizioni · lato ' + (st.sideIdx + 1) + ' di 2';
 }
 function tempoFinish(v) {
   const o = ov; if (!o) return; closeOv();
-  const s = S.active.ex[o.ei].sets[o.si]; s.v = Math.max(0, v); s.done = true; save(); render();
-  say('Serie finita'); startRest(o.ei, o.si);
+  const s = S.active.ex[o.ei].sets[o.si]; s.v = Math.max(0, v); s.done = true; save();
+  afterSetDone(o.ei, o.si, true);
+}
+
+/* Dopo una serie: se l'esercizio è finito, la schermata passa subito al prossimo
+   (così alla fine del recupero è già pronto) e parte il recupero. */
+function afterSetDone(ei, si, fromTempo) {
+  const a = S.active; const e = a.ex[ei];
+  if (e.sets.every((q) => q.done) && a.idx === ei) {
+    const nx = a.ex.findIndex((q, k) => k > ei && q.sets.some((x) => !x.done));
+    if (nx >= 0) { a.idx = nx; save(); render(); window.scrollTo(0, 0); startRest(ei, si, fromTempo); return; }
+  }
+  render();
+  startRest(ei, si, fromTempo);
 }
 
 /* ---------- Sessione ---------- */
@@ -340,8 +372,8 @@ const A = {
   step: (t) => { const e = curEx(); const s = e.sets[+t.dataset.s]; s.v = clamp(s.v + (e.u === 's' ? 5 : 1) * +t.dataset.v, 0, 999); save(); render(); },
   setDone: (t) => {
     ensureAudio(); const a = S.active; const i = +t.dataset.s; const s = curEx().sets[i];
-    s.done = !s.done; if (!s.done) s.rir = null; save(); render();
-    if (s.done) startRest(a.idx, i);
+    s.done = !s.done; if (!s.done) s.rir = null; save();
+    if (s.done) afterSetDone(a.idx, i); else render();
   },
   rir: (t) => {
     if (!ov || !S.active) return; const s = S.active.ex[ov.ei].sets[ov.si]; const v = +t.dataset.v;
@@ -351,9 +383,7 @@ const A = {
   restAdd: (t) => {
     if (!ov || ov.mode !== 'rest') return; const d = +t.dataset.v;
     ov.end += d * 1000; ov.total = Math.max(15, ov.total + d); if (ov.end <= Date.now()) ov.end = Date.now();
-    const e = S.active.ex[ov.ei]; e.rest = clamp(e.rest + d, 15, 300);
-    S.prefs[e.id] = { rest: e.rest }; S.active.timer = Object.assign(S.active.timer || {}, { end: ov.end, total: ov.total }); save();
-    const pf = $('#ovPref'); if (pf) pf.textContent = 'Recupero di questo esercizio salvato a ' + mmss(e.rest) + ' per le prossime volte';
+    S.active.timer = Object.assign(S.active.timer || {}, { end: ov.end, total: ov.total }); save();
     tickOv();
   },
   restSkip: () => { closeOv(); render(); },
@@ -362,7 +392,8 @@ const A = {
   holdStart: (t) => { ensureAudio(); const e = curEx(); const i = +t.dataset.s; openOv({ mode: 'hold', start: Date.now(), target: Math.max(5, e.sets[i].v), ei: S.active.idx, si: i }); },
   tempoStart: (t) => {
     ensureAudio(); const e = curEx(); const i = +t.dataset.s; const s = e.sets[i];
-    openOv({ mode: 'tempo', start: Date.now(), ei: S.active.idx, si: i, target: s.t != null ? s.t : s.v, side: !!e.side, ph: tempoPhases(tempoOf(e.x)) });
+    const tp = tempoOf(e.x); const key = EX_ANIM[e.x]; const d = key ? animDef(key) : null;
+    openOv({ mode: 'tempo', start: Date.now(), ei: S.active.idx, si: i, target: s.v, side: !!e.side, ph: tempoPhases(tp), w: tp.w, key: key, inv: !!(d && d.inv) });
   },
   tempoStop: () => {
     if (!ov || ov.mode !== 'tempo') return; const st = tempoState();
@@ -375,7 +406,7 @@ const A = {
   holdStop: () => {
     if (!ov || ov.mode !== 'hold') return; const o = ov; const el = Math.round((Date.now() - o.start) / 1000);
     closeOv(); if (el < 2) { render(); return; }
-    const s = S.active.ex[o.ei].sets[o.si]; s.v = el; s.done = true; save(); render(); startRest(o.ei, o.si);
+    const s = S.active.ex[o.ei].sets[o.si]; s.v = el; s.done = true; save(); afterSetDone(o.ei, o.si);
   },
   lvl: (t) => {
     const e = curEx(); const nx = nextAvail(e.x, P(), +t.dataset.v); if (!nx) return;

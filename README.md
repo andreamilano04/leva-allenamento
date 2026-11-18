@@ -32,6 +32,7 @@ Web app installabile (PWA) per allenarsi a casa a corpo libero: crea un programm
 - Per ogni esercizio: serie, ripetizioni, ritmo di ogni ripetizione (es. «scendi in 2 s · spingi in 1 s»), riposo e come eseguirlo per il proprio obiettivo; «Guidami il ritmo» scandisce le ripetizioni con voce e segnali.
 - Blocco facoltativo per il collo (flessione, estensione, isometrie laterali, scrollate) a fine allenamento.
 - Adattamento alla giornata: energia, gambe stanche e giorni vicini alle partite.
+- Recuperi decisi dal programma in base al tipo di esercizio (multiarticolari 90 s, isolamento 75 s, core e polpacci 60 s, collo 45 s; 120 s con obiettivo forza), seguendo le evidenze sulla durata delle pause per l'ipertrofia (Singer et al., 2024). Durata stimata comprensiva di pause, riscaldamento e defaticamento.
 
 **Progressione**
 - Si sale di livello solo con tutte le serie al massimo del range e un margine (RIR ≥ 1). Senza RIR servono due allenamenti di fila.
