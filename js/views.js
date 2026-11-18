@@ -529,7 +529,7 @@ function vRoutine() {
   h += '<p class="desc">' + esc(m.d) + '</p>';
   h += '<div class="rt-row"><button class="icon-btn" data-a="rtGo" data-v="-1" ' + (r.i > 0 ? '' : 'disabled') + ' aria-label="Precedente">' + ICON.chevL + '</button>' +
     '<div class="ring small" style="margin:0">' + '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="#1F1F22" stroke-width="5.5"/><circle id="rtRing" cx="50" cy="50" r="45" fill="none" stroke="#C4F03A" stroke-width="5.5" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="0"/></svg>' +
-    '<div class="t"><b id="rtT">' + Math.ceil(rtLeft()) + '</b><span>secondi</span></div></div>' +
+    '<div class="t"><b id="rtT">' + Math.ceil(rtPrep() || rtLeft()) + '</b><span id="rtL">' + (rtPrep() ? 'in posizione' : 'secondi') + '</span></div></div>' +
     '<button class="icon-btn" data-a="rtGo" data-v="1" aria-label="Successivo">' + ICON.chevR + '</button></div>';
   h += '<div class="center" style="margin-top:12px"><button class="btn ghost sm" data-a="rtToggle" style="margin:0 auto">' + (r.end ? ICON.pause + 'Ferma' : ICON.play + 'Riprendi') + '</button></div>';
   h += '<p class="muted small center" style="margin-top:12px">Poi: ' + esc(nx ? routineMove(nx.id).n + (nx.side ? ' (lato ' + nx.side + ')' : '') : (warm ? 'inizia l’allenamento' : 'riepilogo')) + '</p>';

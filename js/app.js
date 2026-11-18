@@ -100,7 +100,12 @@ function openOv(o) {
   } else if (o.mode === 'last') {
     h = '<div class="done-ic" style="width:76px;height:76px;margin:0 auto 18px">' + ICON.check + '</div><h2 class="center">Ultima serie fatta!</h2>' + rirBox(o.ei, o.si) + '<button class="btn primary" data-a="finishFromOv">Termina allenamento</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Rivedi le serie</button>';
   } else if (o.mode === 'hold') {
-    h = '<div class="eyebrow">Tieni la posizione</div><div class="ring">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">0</b><span>obiettivo ' + o.target + ' s</span></div></div><div class="nexttx">' + esc(EX[S.active.ex[o.ei].x].n) + '</div><div class="sp24"></div><button class="btn primary" data-a="holdStop">' + ICON.stop + 'Stop e registra</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
+    const hx = S.active.ex[o.ei].x; const hk = EX_ANIM[hx];
+    h = '<div class="eyebrow" id="hSub">Mettiti in posizione</div><div class="nexttx" style="font-size:18px;margin:4px 0">' + esc(EX[hx].n) + '</div>' +
+      (hk ? '<div class="anim sm" style="width:100%;margin:6px 0 4px"><svg viewBox="0 -12 160 124" data-anim="' + hk + '" role="img" aria-label="Animazione">' + frameInner(hk, 0) + '</svg></div>' : '') +
+      '<div class="ring small">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">3</b><span id="hL">preparati</span></div></div>' +
+      '<div class="muted small" id="hSide" style="margin-bottom:18px">' + (o.side ? 'lato 1 di 2 · ' : '') + 'obiettivo ' + o.target + ' secondi · si ferma da solo</div>' +
+      '<button class="btn primary" data-a="holdStop">' + ICON.stop + 'Fermati prima e registra</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'tempo') {
     const ex = S.active.ex[o.ei];
     h = '<div class="eyebrow">Serie ' + (o.si + 1) + ' di ' + ex.sets.length + ' · ritmo guidato</div><div class="nexttx" style="font-size:18px;margin-bottom:6px">' + esc(EX[ex.x].n) + '</div>' +
@@ -126,10 +131,7 @@ function tickOv() {
     if (left > 0 && left <= 3 && ov.said !== left) { ov.said = left; say(['', 'uno', 'due', 'tre'][left]); }
     if (left <= 0) { buzz([200, 100, 200]); const nx = ov.next || ''; if (!say('Via! ' + nx)) beep(3); closeOv(); toast('Recupero finito: ' + (nx || 'prossima serie')); render(); }
   } else if (ov.mode === 'hold') {
-    const el = Math.floor((Date.now() - ov.start) / 1000);
-    if (t) t.textContent = el;
-    if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - Math.min(1, el / ov.target))).toFixed(1));
-    if (el >= ov.target && !ov.beeped) { ov.beeped = true; buzz([200]); if (!say('Tempo!')) beep(2); }
+    holdTick(t, ring);
   } else if (ov.mode === 'tempo') {
     tempoTick();
   } else if (ov.mode === 'pause') {
@@ -165,10 +167,14 @@ function rtBegin(kind) {
 }
 function rtStep(i, first) {
   const r = S.active.rt; const st = r.steps[i]; const m = routineMove(st.id);
-  r.i = i; r.total = m.s; r.end = Date.now() + m.s * 1000; r.left = m.s; r.said = null; save(); render(); window.scrollTo(0, 0);
-  say((first ? (r.kind === 'warm' ? 'Riscaldamento. ' : 'Defaticamento. ') : '') + m.n + (st.side ? ', lato ' + st.side : ''));
+  // Nuovo esercizio: 3 secondi per mettersi in posizione. Stesso esercizio sull'altro lato: si parte subito.
+  const sameMove = i > 0 && r.steps[i - 1].id === st.id;
+  const prep = sameMove ? 0 : 3;
+  r.i = i; r.total = m.s; r.prepEnd = prep ? Date.now() + prep * 1000 : null; r.end = Date.now() + (prep + m.s) * 1000; r.left = m.s; r.said = null; save(); render(); window.scrollTo(0, 0);
+  if (sameMove) say('Cambia lato'); else say((first ? (r.kind === 'warm' ? 'Riscaldamento. ' : 'Defaticamento. ') : '') + m.n + (st.side ? ', lato ' + st.side : '') + '. In posizione');
 }
-function rtLeft() { const r = S.active && S.active.rt; if (!r) return 0; return r.end ? Math.max(0, (r.end - Date.now()) / 1000) : r.left; }
+function rtLeft() { const r = S.active && S.active.rt; if (!r) return 0; return r.end ? Math.min(r.total, Math.max(0, (r.end - Date.now()) / 1000)) : r.left; }
+function rtPrep() { const r = S.active && S.active.rt; return r && r.end && r.prepEnd && Date.now() < r.prepEnd ? (r.prepEnd - Date.now()) / 1000 : 0; }
 function rtDone() {
   const a = S.active; if (!a || !a.rt) return;
   if (a.rt.kind === 'warm') { a.phase = 'main'; a.rt = null; save(); render(); window.scrollTo(0, 0); say('Iniziamo! Primo esercizio: ' + EX[a.ex[a.idx].x].n); }
@@ -177,7 +183,11 @@ function rtDone() {
 function rtTick() {
   const a = S.active; if (!a || !a.rt || route !== 'session' || a.pausedAt || ov) return;
   const r = a.rt; if (!r.end) return;
-  const left = rtLeft(); const t = document.getElementById('rtT'); const ring = document.getElementById('rtRing');
+  const left = rtLeft(); const t = document.getElementById('rtT'); const ring = document.getElementById('rtRing'); const lab = document.getElementById('rtL');
+  const pr = rtPrep();
+  if (pr > 0) { if (t) t.textContent = Math.ceil(pr); if (lab) lab.textContent = 'in posizione'; if (ring) ring.setAttribute('stroke-dashoffset', '0'); return; }
+  if (lab && lab.textContent !== 'secondi') lab.textContent = 'secondi';
+  if (r.prepEnd && r.said == null) { r.said = 'go'; say('Via'); }
   if (t) t.textContent = Math.ceil(left); if (ring) ring.setAttribute('stroke-dashoffset', (282.74 * (1 - left / r.total)).toFixed(1));
   const c = Math.ceil(left); if (c > 0 && c <= 3 && r.said !== c) { r.said = c; if (!say(['', 'uno', 'due', 'tre'][c])) beep(1); }
   if (left <= 0) { buzz([150]); if (r.i + 1 >= r.steps.length) rtDone(); else rtStep(r.i + 1); }
@@ -190,6 +200,43 @@ function endMain() {
   if (a.phase === 'cool') { rtDone(); return; }
   const any = a.ex.some((e) => e.sets.some((q) => q.done));
   if (any && S.settings.cool !== false) rtBegin('cool'); else finishSession();
+}
+
+/* ---------- Cronometro per gli esercizi a tempo ----------
+   3 secondi per mettersi in posizione, poi conto alla rovescia; a zero si ferma da solo,
+   registra la serie e fa partire il recupero. Per lato: cambio lato con 3 secondi di pausa. */
+function holdState(o) {
+  const now = Date.now(); if (now < o.start) return { pre: (o.start - now) / 1000 };
+  let el = (now - o.start) / 1000;
+  if (el < o.target) return { seg: 1, el: el };
+  if (!o.side) return { end: true };
+  el -= o.target; if (el < 3) return { change: 3 - el };
+  el -= 3; if (el < o.target) return { seg: 2, el: el };
+  return { end: true };
+}
+function holdTick(t, ring) {
+  const o = ov; const st = holdState(o); const L = document.getElementById('hL'), sub = document.getElementById('hSub'), sd = document.getElementById('hSide');
+  if (st.end) { holdFinish(o, o.target); return; }
+  if (st.pre != null || st.change != null) {
+    const c = Math.ceil(st.pre != null ? st.pre : st.change);
+    if (t) t.textContent = c; if (L) L.textContent = 'preparati'; if (ring) ring.setAttribute('stroke-dashoffset', '0');
+    if (sub) sub.textContent = st.change != null ? 'Cambia lato' : 'Mettiti in posizione';
+    if (st.change != null && o.said !== 'chg') { o.said = 'chg'; buzz([150]); if (!say('Cambia lato')) beep(1); if (sd) sd.textContent = 'lato 2 di 2 · obiettivo ' + o.target + ' secondi · si ferma da solo'; }
+    return;
+  }
+  const left = Math.max(0, o.target - st.el); const c = Math.ceil(left);
+  if (t) t.textContent = c; if (L) L.textContent = 'secondi'; if (sub) sub.textContent = 'Tieni la posizione';
+  if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - left / o.target)).toFixed(1));
+  const key = st.seg + ':' + c;
+  if (o.said !== key) {
+    if (o.said == null || /^(chg|pre)/.test(String(o.said)) || o.said.split(':')[0] !== String(st.seg)) say('Via');
+    else if (c <= 3 && c > 0) say(['', 'uno', 'due', 'tre'][c]);
+    o.said = key;
+  }
+}
+function holdFinish(o, v) {
+  if (ov !== o) return; closeOv(); buzz([200, 100, 200]); if (!say('Tempo!')) beep(2);
+  const s = S.active.ex[o.ei].sets[o.si]; s.v = Math.max(1, Math.round(v)); s.done = true; save(); afterSetDone(o.ei, o.si);
 }
 
 /* ---------- Ritmo guidato ----------
@@ -389,7 +436,7 @@ const A = {
   restSkip: () => { closeOv(); render(); },
   ovClose: () => { closeOv(); render(); },
   finishFromOv: () => { closeOv(); endMain(); },
-  holdStart: (t) => { ensureAudio(); const e = curEx(); const i = +t.dataset.s; openOv({ mode: 'hold', start: Date.now(), target: Math.max(5, e.sets[i].v), ei: S.active.idx, si: i }); },
+  holdStart: (t) => { ensureAudio(); const e = curEx(); const i = +t.dataset.s; openOv({ mode: 'hold', start: Date.now() + 3000, target: Math.max(5, e.sets[i].v), side: !!e.side, ei: S.active.idx, si: i }); say(EX[e.x].n + '. In posizione'); },
   tempoStart: (t) => {
     ensureAudio(); const e = curEx(); const i = +t.dataset.s; const s = e.sets[i];
     const tp = tempoOf(e.x); const key = EX_ANIM[e.x]; const d = key ? animDef(key) : null;
@@ -404,9 +451,10 @@ const A = {
   pNeck: () => { S.profile.neck = !S.profile.neck; commitProfile(true); },
   holdStart_unused: null,
   holdStop: () => {
-    if (!ov || ov.mode !== 'hold') return; const o = ov; const el = Math.round((Date.now() - o.start) / 1000);
-    closeOv(); if (el < 2) { render(); return; }
-    const s = S.active.ex[o.ei].sets[o.si]; s.v = el; s.done = true; save(); afterSetDone(o.ei, o.si);
+    if (!ov || ov.mode !== 'hold') return; const o = ov; const st = holdState(o);
+    const el = st.pre ? 0 : st.seg === 2 ? Math.round(st.el) : st.seg === 1 ? Math.round(st.el) : o.target;
+    if (el < 2) { closeOv(); render(); return; }
+    holdFinish(o, el);
   },
   lvl: (t) => {
     const e = curEx(); const nx = nextAvail(e.x, P(), +t.dataset.v); if (!nx) return;
@@ -564,7 +612,7 @@ const A = {
   obSafe: () => { ob.safe = !ob.safe; render(); },
   /* Riscaldamento / defaticamento */
   rtGo: (t) => { const r = S.active.rt; const n = r.i + +t.dataset.v; if (n < 0) return; if (n >= r.steps.length) rtDone(); else rtStep(n); },
-  rtToggle: () => { const r = S.active.rt; if (r.end) { r.left = Math.max(0, (r.end - Date.now()) / 1000); r.end = null; } else { r.end = Date.now() + (r.left || 1) * 1000; } save(); render(); },
+  rtToggle: () => { const r = S.active.rt; if (r.end) { r.left = rtLeft(); r.end = null; r.prepEnd = null; } else { r.end = Date.now() + (r.left || 1) * 1000; } save(); render(); },
   rtSkip: () => rtDone(),
   /* Misure */
   measureSheet: () => sheet(sheetMeasures()),
