@@ -286,7 +286,7 @@ function tempoState(at) {
   if (o.side && t >= per * rep) { t -= per * rep; if (t < 4) return { change: 4 - t }; t -= 4; sideIdx = 1; }
   const r = Math.floor(t / rep); if (r >= per) return { end: true };
   let w = t - r * rep, i = 0; while (i < o.ph.length - 1 && w >= o.ph[i].s) { w -= o.ph[i].s; i++; }
-  return { rep: r, ph: i, frac: Math.min(1, w / o.ph[i].s), sideIdx: sideIdx, t: t };
+  return { rep: r, ph: i, w: w, frac: Math.min(1, w / o.ph[i].s), sideIdx: sideIdx, t: t };
 }
 function tempoPose(st) {
   const o = ov; if (!o.key || st.pre != null || st.change != null || st.end || st.intro) return o.inv ? 1 : 0;
@@ -300,6 +300,10 @@ function tempoPose(st) {
 const VOICE_LEAD = 300; // ms di anticipo della voce
 function tempoTick() {
   const o = ov; const P = (id) => document.getElementById(id);
+  if (o.numPh == null) { // dove dire il numero: nella fase più lunga, se dura almeno 2 secondi
+    let L = 0; o.ph.forEach((p, k) => { if (p.s > o.ph[L].s) L = k; });
+    o.numPh = o.ph[L].s >= 2 ? L : -1; o.numAt = Math.min(1.0, o.ph[L].s / 2);
+  }
   // dopo la frase iniziale (al massimo 7 s di attesa): 3, 2, 1
   if (!o.start && Date.now() - o.introAt > 1200 && (!speaking() || Date.now() - o.introAt > 7000)) o.start = Date.now() + 3000;
   const st = tempoState();
@@ -311,12 +315,17 @@ function tempoTick() {
   const seq = (on, frac) => o.ph.forEach((p, k) => { const el = P('tq' + k); if (!el) return; el.className = k === on ? 'on' : ''; const bar = el.querySelector('i'); if (bar) bar.style.width = (k === on ? frac * 100 : 0).toFixed(0) + '%'; });
   if (st.intro) { P('tPh').textContent = '…'; seq(-1, 0); return; }
   if (sv.ph != null) {
-    const vk = sv.sideIdx + ':' + sv.rep + ':' + sv.ph;
-    if (o.lastV !== vk) { o.lastV = vk; const pv = o.ph[sv.ph]; say(sv.ph === 0 && sv.rep > 0 ? sv.rep + ', ' + pv.v : pv.v); } // "3, giù"
+    // Parola della fase all'inizio della fase. Il numero (la ripetizione in corso, uguale a quello sullo schermo)
+    // viene detto da solo a metà della fase più lunga, così non si accavalla con "giù" / "su".
+    const vk = sv.sideIdx + ':' + sv.rep + ':' + sv.ph; const pv = o.ph[sv.ph];
+    const nk = sv.sideIdx + ':' + sv.rep + ':n';
+    if (o.lastV !== vk) { o.lastV = vk; say(o.numPh < 0 && sv.ph === 0 ? (sv.rep + 1) + ', ' + pv.v : pv.v); }
+    else if (o.numPh >= 0 && sv.ph === o.numPh && sv.w >= o.numAt && o.lastN !== nk) { o.lastN = nk; say(String(sv.rep + 1)); }
   }
 
+
   if (st.pre != null) {
-    const c = Math.ceil(st.pre); if (o.last !== 'pre' + c) { o.last = 'pre' + c; if (!say(String(c))) tone(660); }
+    const c = Math.ceil(st.pre); if (o.last !== 'pre' + c) { o.last = 'pre' + c; if (c === 3) { if (!say('Pronti')) tone(660); } else tone(660, 0.1); } // niente numeri qui: i numeri sono solo le ripetizioni
     P('tPh').textContent = c; P('tPh').className = 'tphase h'; P('tRep').textContent = 'Si parte tra…'; seq(-1, 0); return;
   }
   if (st.end) { tempoFinish(o.target); return; }
@@ -329,12 +338,12 @@ function tempoTick() {
   const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
   if (o.last !== key) { o.last = key; tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.06); buzz(30); }
   P('tPh').textContent = p.v.toUpperCase(); P('tPh').className = 'tphase ' + p.k;
-  P('tRep').innerHTML = 'Ripetizione <b>' + (st.rep + 1) + '</b> di ' + o.target + (o.side ? ' · lato ' + (st.sideIdx + 1) : '');
+  P('tRep').innerHTML = 'Ripetizione <b class="big">' + (st.rep + 1) + '</b> di ' + o.target + (o.side ? ' · lato ' + (st.sideIdx + 1) : '');
   seq(st.ph, st.frac);
 }
 function tempoFinish(v) {
   const o = ov; if (!o) return; closeOv();
-  say(String(v));
+  say('Fatto');
   const s = S.active.ex[o.ei].sets[o.si]; s.v = Math.max(0, v); s.done = true; save();
   afterSetDone(o.ei, o.si, true);
 }

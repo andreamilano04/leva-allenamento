@@ -393,7 +393,7 @@ body.full #tabbar{display:none}
 .srow b{font-weight:600;color:var(--tx2)}.srow small{font-weight:500;color:var(--mu)}
 .srow.ok b{color:var(--ac)}.srow.cur span,.srow.cur b{color:var(--tx)}
 
-.trep{font-size:18px;color:var(--tx2);margin:2px 0 2px}.trep b{color:var(--tx);font-size:24px}
+.trep{font-size:18px;color:var(--tx2);margin:2px 0 2px}.trep b{color:var(--tx);font-size:24px}.trep b.big{font-size:34px;color:var(--ac)}
 .tseq{display:flex;gap:6px;width:100%;justify-content:center;margin-top:2px}
 .tseq span{position:relative;overflow:hidden;flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;padding:8px 4px 9px;border-radius:14px;background:var(--s2);border:1px solid var(--line);color:var(--mu)}
 .tseq span b{font-size:15px;letter-spacing:.04em}.tseq span small{font-size:11px}

@@ -120,6 +120,15 @@ function hand(el, ha, col) {
   const tip = add(ha, u, 2.6), th = add(add(ha, n, 2.2), u, 0.6);
   return capsule(ha, tip, 6.4, 4.6, col) + capsule(add(ha, n, 1.2), th, 2.4, 2, col);
 }
+/* Curva chiusa morbida (Catmull-Rom) che passa per i punti dati. */
+function smooth(pts) {
+  const n = pts.length; const f = (v) => v.toFixed(1); let d = 'M' + f(pts[0][0]) + ' ' + f(pts[0][1]);
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+    d += ' C' + f(p1[0] + (p2[0] - p0[0]) / 6) + ' ' + f(p1[1] + (p2[1] - p0[1]) / 6) + ' ' + f(p2[0] - (p3[0] - p1[0]) / 6) + ' ' + f(p2[1] - (p3[1] - p1[1]) / 6) + ' ' + f(p2[0]) + ' ' + f(p2[1]);
+  }
+  return d + 'Z';
+}
 const angOf = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
 
 function figureSvg(J, front, hl) {
@@ -191,11 +200,15 @@ function figureSvg(J, front, hl) {
     // busto: maglietta con petto e schiena modellati, bacino nei pantaloncini, glutei
     const d = [J.sh[0] - J.hip[0], J.sh[1] - J.hip[1]]; const l = Math.hypot(d[0], d[1]) || 1; const bk = [d[1] / l, -d[0] / l]; const fr = [-bk[0], -bk[1]];
     const ang = angOf(J.hip, J.sh);
-    torso = capsule(J.hip, J.sh, 14.8, 18.2, OUT) + capsule(J.hip, J.sh, 13, 16.4, c.shirt);
-    torso += shine(lerp2(J.hip, J.sh, 0.25), J.sh, 13, 16.4, '#8A95A8', 0.35);
-    torso += ell(add(lerp2(J.hip, J.sh, 0.72), fr, 2.6), 6.5, 4.6, ang, on('chest') ? H : c.shirt);   // petto
-    torso += ell(add(lerp2(J.hip, J.sh, 0.62), bk, 2.4), 8.5, 4.2, ang, on('back') ? H : c.shirt);    // dorsali
-    if (on('torso')) torso += ell(add(lerp2(J.hip, J.sh, 0.4), fr, 2.6), 6.5, 3.6, ang, H);
+    // sagoma del busto: schiena con scapole, vita stretta, petto in fuori, spalle larghe
+    const u = [d[0] / l, d[1] / l]; const P = (al, ac) => [J.hip[0] + u[0] * al * l + fr[0] * ac, J.hip[1] + u[1] * al * l + fr[1] * ac];
+    const body = smooth([P(-0.06, -6.6), P(0.3, -5.4), P(0.62, -7.4), P(0.9, -7.8), P(1.1, -4.2), P(1.1, 3.4), P(0.86, 7.6), P(0.66, 7.2), P(0.42, 5.6), P(0.12, 6.4)]);
+    torso = '<path d="' + body + '" fill="' + c.shirt + '" stroke="' + OUT + '" stroke-width="1.8" stroke-linejoin="round" paint-order="stroke"/>';
+    torso += '<path d="' + smooth([P(0.55, -4.4), P(0.85, -5.6), P(1.0, -2), P(0.95, 3.2), P(0.8, 5), P(0.62, 3)]) + '" fill="#8A95A8" opacity=".22"/>'; // luce sul petto e sulle spalle
+    torso += '<path d="M' + P(0.64, 6.6).map((v) => v.toFixed(1)).join(' ') + ' Q' + P(0.7, 3).map((v) => v.toFixed(1)).join(' ') + ' ' + P(0.86, 1.5).map((v) => v.toFixed(1)).join(' ') + '" stroke="' + OUT + '" stroke-width=".7" fill="none" opacity=".55"/>'; // piega sotto il petto
+    if (on('chest')) torso += ell(P(0.76, 4.4), 6.5, 3.6, ang, H);
+    if (on('back')) torso += ell(P(0.66, -4.4), 8.5, 3.4, ang, H);
+    if (on('torso')) torso += ell(P(0.4, 3), 6.5, 3.2, ang, H);
     torso += capsule(add(J.hip, d, -0.04), lerp2(J.hip, J.sh, 0.2), 13.6, 13.4, c.shorts);           // pantaloncini
     torso += '<circle cx="' + add(J.hip, bk, 3).map((v) => v.toFixed(1)).join('" cy="') + '" r="6" fill="' + (on('glute') ? H : '#2A2F38') + '"/>'; // glutei
     if (on('delt')) torso += '<circle cx="' + J.sh[0].toFixed(1) + '" cy="' + J.sh[1].toFixed(1) + '" r="5.4" fill="' + H + '"/>';
