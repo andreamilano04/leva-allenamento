@@ -115,6 +115,11 @@ test('Partite: oggi, ieri, domani', () => {
   eq(R('matchNear')(p, '2026-11-21'), 'oggi'); eq(R('matchNear')(p, '2026-11-22'), 'ieri'); eq(R('matchNear')(p, '2026-11-20'), 'domani'); eq(R('matchNear')(p, '2026-11-18'), null);
   eq(R('matchNear')(profile([], [0, 2, 4], 45), '2026-11-21'), null);
 });
+test('Partite per data: rinvii e fine settimana variabili', () => {
+  const p = profile([], [0, 2, 4], 45, { matchDates: ['2026-11-22', '2026-11-28'] });
+  eq(R('matchNear')(p, '2026-11-21'), 'domani'); eq(R('matchNear')(p, '2026-11-22'), 'oggi'); eq(R('matchNear')(p, '2026-11-23'), 'ieri'); eq(R('matchNear')(p, '2026-11-25'), null); eq(R('matchNear')(p, '2026-11-29'), 'ieri');
+  const s = R('upgrade')({ v: 2, profile: { height: 175, weight: 65, goal: 70, matchDates: ['2026-11-22', 'x', '2026-11-22'] } }); eq(s.profile.matchDates, ['2026-11-22']);
+});
 test('Scarico proposto dopo 6 settimane piene, non prima', () => {
   const p = profile([], [0, 2, 4], 45); const now = R('parseD')('2026-11-18');
   const mk = (weeks) => { const st = R('fresh()'); for (let w = 1; w <= weeks; w++) for (let k = 0; k < 3; k++) { const d = new Date(2026, 10, 16 - 7 * w + k * 2); st.sessions.push({ d: R('dkey')(d), ex: [] }); } return st; };

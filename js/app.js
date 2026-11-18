@@ -133,6 +133,14 @@ function startRest(ei, si) {
   if (nextX) say('Recupero. Prossimo esercizio: ' + next);
 }
 
+/* Aggiunge o toglie una partita in una data; aggiorna anche la bozza del profilo. */
+function setMatch(k, on) {
+  const p = S.profile; const a = p.matchDates || (p.matchDates = []); const i = a.indexOf(k);
+  if (on && i < 0) a.push(k); if (!on && i >= 0) a.splice(i, 1); a.sort();
+  if (pdraft) pdraft.matchDates = a.slice();
+  save();
+}
+
 /* ---------- Riscaldamento / defaticamento ---------- */
 function rtBegin(kind) {
   const a = S.active; a.phase = kind; a.rt = { kind: kind, steps: routineSteps(kind), i: 0, end: null, left: 0, total: 0 };
@@ -508,6 +516,14 @@ const A = {
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
     closeSheet(); toast('File creato: aprilo con il calendario');
   },
+  /* Partite per data */
+  dayTap: (t) => sheet(sheetDayTap(t.dataset.v)),
+  matchToggle: (t) => { setMatch(t.dataset.v, true); closeSheet(); toast('Partita segnata'); render(); },
+  matchAdd: () => { const v = ($('#mDate') || {}).value; if (!v) return toast('Scegli una data'); setMatch(v, true); toast('Partita aggiunta'); render(); },
+  matchDel: (t) => { setMatch(t.dataset.v, false); closeSheet(); toast('Partita tolta'); render(); },
+  matchMove: (t) => sheet('<h3 style="margin-bottom:6px">Partita rinviata</h3><p class="muted small" style="margin-bottom:14px">Nuova data per la partita del ' + esc(fmtD(t.dataset.v)) + ':</p><input id="mMove" type="date" min="' + today() + '" style="width:100%;height:54px;background:var(--s2);border:1px solid var(--line);border-radius:18px;padding:0 16px;margin-bottom:12px"><button class="btn primary" data-a="matchMoveOk" data-v="' + t.dataset.v + '">Sposta la partita</button><div class="sp10"></div><button class="btn ghost" data-a="matchMoveNone" data-v="' + t.dataset.v + '">Data ancora da definire</button>'),
+  matchMoveOk: (t) => { const v = ($('#mMove') || {}).value; if (!v) return toast('Scegli la nuova data'); setMatch(t.dataset.v, false); setMatch(v, true); closeSheet(); toast('Partita spostata al ' + fmtD(v)); render(); },
+  matchMoveNone: (t) => { setMatch(t.dataset.v, false); closeSheet(); toast('Partita tolta: aggiungila quando c’è la nuova data'); render(); },
   newsOk: () => { S.meta.news = false; save(); closeSheet(); if (!S.meta.safety) openSheet(safetyHtml(true)); },
   newsProfile: () => { S.meta.news = false; save(); closeSheet(); go('profile'); },
 

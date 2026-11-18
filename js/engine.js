@@ -272,7 +272,13 @@ function routineMin(kind) { return Math.round(routineSteps(kind).reduce((t, s) =
 
 /* ---------- Partite (calcio o altro sport) ----------
    Restituisce 'oggi', 'ieri', 'domani' o null per la data indicata. */
+function isMatchDay(p, k) { return (p.matchDates || []).indexOf(k) >= 0 || (p.match || []).indexOf(wdayOf(parseD(k))) >= 0; }
 function matchNear(p, k) {
+  const ds = p.matchDates || [];
+  if (ds.length) {
+    const near = (d) => ds.indexOf(dkey(new Date(parseD(k).getFullYear(), parseD(k).getMonth(), parseD(k).getDate() + d))) >= 0;
+    if (ds.indexOf(k) >= 0) return 'oggi'; if (near(-1)) return 'ieri'; if (near(1)) return 'domani';
+  }
   const m = p.match || []; if (!m.length) return null;
   const w = wdayOf(parseD(k));
   if (m.indexOf(w) >= 0) return 'oggi';

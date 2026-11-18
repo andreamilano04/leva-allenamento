@@ -31,7 +31,7 @@ function vHome() {
   }
 
   const doneW = sessionsThisWeek(S);
-  h += '<section class="card"><div class="card-h"><h3>Questa settimana</h3><span class="tag ' + (doneW >= p.wdays.length ? 'ac' : '') + '">' + doneW + '/' + p.wdays.length + ' allenamenti</span></div>' + weekStrip(wp) + '</section>';
+  h += '<section class="card"><div class="card-h"><h3>Questa settimana</h3><span class="tag ' + (doneW >= p.wdays.length ? 'ac' : '') + '">' + doneW + '/' + p.wdays.length + ' allenamenti</span></div>' + weekStrip(wp) + '<p class="muted tiny center" style="margin-top:10px">Tocca un giorno per segnare una partita ⚽</p></section>';
 
   h += remindersCard(p);
   const cw = curWeight();
@@ -97,8 +97,8 @@ function weekStrip(wp) {
   return '<div class="week">' + wp.map((d) => {
     const cls = ['wd']; if (d.train) cls.push('train'); if (d.done.length) cls.push('done'); if (d.today) cls.push('today');
     const lab = d.done.length ? '✓' : (d.plan ? d.plan : '');
-    const ball = (S.profile.match || []).indexOf(d.i) >= 0 ? '<em class="ball" title="Partita">⚽</em>' : '';
-    return '<div class="' + cls.join(' ') + '">' + ball + '<span>' + WD[d.i] + '</span><b>' + d.d.getDate() + '</b><small>' + esc(lab) + '</small></div>';
+    const ball = isMatchDay(S.profile, d.k) ? '<em class="ball" title="Partita">⚽</em>' : '';
+    return '<button class="' + cls.join(' ') + '" data-a="dayTap" data-v="' + d.k + '" aria-label="' + WD[d.i] + ' ' + d.d.getDate() + '">' + ball + '<span>' + WD[d.i] + '</span><b>' + d.d.getDate() + '</b><small>' + esc(lab) + '</small></button>';
   }).join('') + '</div>';
 }
 
@@ -317,7 +317,7 @@ function vProfile() {
     '<div class="field"><label>Livello</label>' + seg('pLevel', Object.keys(LEVELS).map((k) => [k, LEVELS[k]]), d.level, 'pPick') + '</div>' +
     '<div class="field"><label>Giorni di allenamento (da 2 a 4)</label>' + daysPicker('pDays', d.wdays) + '</div>' +
     '<div class="field"><label>Durata per allenamento</label>' + seg('pDur', [[30, '30 min'], [45, '45 min'], [60, '60 min']], d.dur, 'pPick') + '</div>' +
-    '<div class="field" style="margin-bottom:0"><label>Giorni delle partite (calcio o altro sport)</label>' + daysPicker('pMatch', d.match || [], 'matchPick') + '<p class="muted tiny" style="margin:8px 4px 0">Il giorno prima, il giorno stesso e il giorno dopo gli esercizi per le gambe hanno una serie in meno.</p></div></section>';
+    '<div class="field" style="margin-bottom:0"><label>Partite fisse ogni settimana (se ce ne sono)</label>' + daysPicker('pMatch', d.match || [], 'matchPick') + '</div></section>' + matchDatesCard();
   h += '<div class="sec-h"><h3>Attrezzatura</h3></div><section class="card">' + EQUIP_ORDER.map((k) => toggle('eq_' + k, d.equip[k], EQUIP[k].n, EQUIP[k].d, 'pEq')).join('') + '</section>';
   h += '<div class="sec-h"><h3>Zone da proteggere</h3></div><section class="card"><p class="muted small" style="margin-bottom:12px">Gli esercizi che le sollecitano molto vengono sostituiti.</p><div class="tags">' + Object.keys(STRESS).map((k) => '<button class="pill ' + (d.avoid.indexOf(k) >= 0 ? 'on' : '') + '" data-a="pAvoid" data-v="' + k + '">' + STRESS[k] + '</button>').join('') + '</div>' +
     (d.excl.length ? '<div class="sp16"></div><h4 style="margin-bottom:8px">Esercizi esclusi</h4>' + d.excl.filter((x) => EX[x]).map((x) => '<div class="lrow"><div class="f">' + esc(EX[x].n) + '</div><button class="btn ghost xs" data-a="pUnexcl" data-v="' + x + '">Rimetti</button></div>').join('') : '') + '</section>';
@@ -503,4 +503,24 @@ function vRoutine() {
   h += '<p class="muted small center" style="margin-top:12px">Poi: ' + esc(nx ? routineMove(nx.id).n + (nx.side ? ' (lato ' + nx.side + ')' : '') : (warm ? 'inizia l’allenamento' : 'riepilogo')) + '</p>';
   h += '<div class="foot"><div class="in"><button class="btn ' + (warm ? 'ghost' : 'primary') + '" data-a="rtSkip">' + (warm ? 'Salta il riscaldamento' : 'Vai al riepilogo') + '</button></div></div>';
   return h;
+}
+
+/* ---------- Partite per data ---------- */
+function matchDatesCard() {
+  const p = S.profile; const tk = today();
+  const next = (p.matchDates || []).filter((d) => d >= tk); const past = (p.matchDates || []).filter((d) => d < tk).slice(-3);
+  return '<div class="sec-h"><h3>Partite</h3><span class="muted small">' + next.length + ' in programma</span></div><section class="card">' +
+    '<p class="muted small" style="margin-bottom:12px">Il giorno prima, quello della partita e il giorno dopo, gli esercizi per le gambe hanno una serie in meno. Puoi inserire subito tutto il calendario; in caso di rinvio cambi la data.</p>' +
+    '<div class="row"><input id="mDate" type="date" min="' + tk + '" class="f" style="height:50px;background:var(--s2);border:1px solid var(--line);border-radius:16px;padding:0 14px"><button class="btn primary sm" data-a="matchAdd">' + ICON.plus + 'Aggiungi</button></div>' +
+    (next.length ? '<div class="sp10"></div>' + next.map((d) => '<div class="lrow"><span style="font-size:18px">⚽</span><div class="f"><div class="t">' + esc(cap(parseD(d).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))) + '</div></div><button class="btn ghost xs" data-a="matchMove" data-v="' + d + '">Rinvio</button><button class="icon-btn sm" data-a="matchDel" data-v="' + d + '" aria-label="Elimina partita">' + ICON.x + '</button></div>').join('') : '<p class="muted small" style="margin-top:12px">Nessuna partita in programma.</p>') +
+    (past.length ? '<p class="muted tiny" style="margin-top:10px">Ultime giocate: ' + past.map((d) => fmtD(d)).join(', ') + '</p>' : '') + '</section>';
+}
+function sheetDayTap(k) {
+  const p = S.profile; const on = (p.matchDates || []).indexOf(k) >= 0; const fixed = (p.match || []).indexOf(wdayOf(parseD(k))) >= 0;
+  const day = cap(parseD(k).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }));
+  const h = '<h3 style="margin-bottom:6px">' + esc(day) + '</h3>';
+  if (fixed) return h + '<p class="muted small" style="margin-bottom:16px">È uno dei giorni con partita fissa ogni settimana. Puoi cambiarlo dal Profilo.</p><button class="btn ghost" data-a="navBack">Chiudi</button>';
+  return h + '<p class="muted small" style="margin-bottom:16px">' + (on ? 'Hai una partita in questo giorno.' : 'Segna una partita: gli esercizi per le gambe verranno alleggeriti il giorno prima, lo stesso giorno e il giorno dopo.') + '</p>' +
+    (on ? '<button class="btn ghost" data-a="matchMove" data-v="' + k + '">Rinviata: cambia data</button><div class="sp10"></div><button class="btn danger" data-a="matchDel" data-v="' + k + '">Togli la partita</button>'
+      : '<button class="btn primary" data-a="matchToggle" data-v="' + k + '">⚽ Ho una partita</button>');
 }
