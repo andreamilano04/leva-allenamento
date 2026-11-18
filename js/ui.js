@@ -122,6 +122,6 @@ function rangeTxt(r, u, side) { return r[0] + '–' + r[1] + ' ' + unit(u) + (si
 
 const navHook = () => { if (typeof syncHistory === 'function') syncHistory(); };
 function openSheet(html) { $('#sheetBody').innerHTML = html; $('#sheet').classList.add('show'); $('#sheet .pane').scrollTop = 0; navHook(); }
-function closeSheet() { $('#sheet').classList.remove('show'); navHook(); }
+function closeSheet() { $('#sheet').classList.remove('show'); try { curSheet = null; } catch (e) {} navHook(); }
 let toastT = null;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }

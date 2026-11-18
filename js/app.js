@@ -40,7 +40,7 @@ function render() {
   $('#tabbar .in').innerHTML = TABS.map((t) => '<button data-a="tab" data-v="' + t[0] + '" class="' + (route === t[0] ? 'on' : '') + '" aria-label="' + t[1] + '"' + (route === t[0] ? ' aria-current="page"' : '') + '>' + ICON[t[2]] + t[1] + '</button>').join('');
   syncHistory();
 }
-function go(r) { if (r !== 'profile') pdraft = null; route = r; render(); window.scrollTo(0, 0); }
+function go(r) { if (r !== route) navPush(); if (r !== 'profile') pdraft = null; route = r; render(); window.scrollTo(0, 0); }
 
 /* ---------- Audio, vibrazione, schermo acceso ---------- */
 let actx = null;
@@ -77,8 +77,8 @@ function openOv(o) {
   ov = o; clearInterval(ovIv);
   const b = $('#ovBody'); let h = '';
   if (o.mode === 'rest') {
-    h = '<div class="eyebrow">Recupero</div><div class="ring">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">' + mmss(o.total) + '</b><span>secondi</span></div></div>' +
-      '<div class="eyebrow">' + esc(o.nextLbl) + '</div><div class="nexttx">' + esc(o.next) + '</div>' + rirBox(o.ei, o.si) +
+    h = '<div class="eyebrow">Recupero</div><div class="ring' + (o.nextX ? ' small' : '') + '">' + ringSvg('ovRing') + '<div class="t"><b id="ovT">' + mmss(o.total) + '</b><span>secondi</span></div></div>' +
+      '<div class="eyebrow">' + esc(o.nextLbl) + '</div><div class="nexttx">' + esc(o.next) + '</div>' + (o.nextX ? '<div style="width:100%">' + animBox(o.nextX, 'sm') + '</div>' : '') + rirBox(o.ei, o.si) +
       '<div class="row" style="width:100%"><button class="btn ghost f" data-a="restAdd" data-v="-15">−15 s</button><button class="btn ghost f" data-a="restAdd" data-v="15">+15 s</button></div>' +
       '<div class="sp10"></div><button class="btn primary" data-a="restSkip">Salta recupero</button><div class="muted tiny center" id="ovPref" style="margin-top:10px;min-height:16px"></div>';
   } else if (o.mode === 'last') {
@@ -113,12 +113,12 @@ function startRest(ei, si) {
   const a = S.active; const e = a.ex[ei];
   const exDone = e.sets.every((x) => x.done); const lastEx = ei === a.ex.length - 1;
   if (exDone && (lastEx || a.ex.every((q) => q.sets.every((x) => x.done)))) { openOv({ mode: 'last', ei: ei, si: si }); return; }
-  let nextLbl, next;
+  let nextLbl, next, nextX = null;
   if (!exDone) { nextLbl = 'Prossima serie'; next = 'Serie ' + (e.sets.findIndex((x) => !x.done) + 1) + ' di ' + e.sets.length + ' · ' + EX[e.x].n; }
-  else { const nIdx = a.ex.findIndex((q, i) => i > ei && q.sets.some((x) => !x.done)); const n = a.ex[nIdx >= 0 ? nIdx : Math.min(ei + 1, a.ex.length - 1)]; nextLbl = 'Prossimo esercizio'; next = EX[n.x].n; }
+  else { const nIdx = a.ex.findIndex((q, i) => i > ei && q.sets.some((x) => !x.done)); const n = a.ex[nIdx >= 0 ? nIdx : Math.min(ei + 1, a.ex.length - 1)]; nextLbl = 'Prossimo esercizio'; next = EX[n.x].n; nextX = n.x; }
   const total = e.rest; const end = Date.now() + total * 1000;
-  a.timer = { end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next }; save();
-  openOv({ mode: 'rest', end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next });
+  a.timer = { end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX }; save();
+  openOv({ mode: 'rest', end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX });
 }
 
 /* ---------- Sessione ---------- */
@@ -213,7 +213,7 @@ const A = {
   start: (t) => {
     if (S.active) { closeSheet(); return go('session'); }
     const wid = t.dataset.v;
-    openSheet('<h3>Come stai oggi?</h3><p class="muted small" style="margin:6px 0 18px">Leva adatta l’allenamento alla giornata. Puoi saltare questo passaggio.</p>' +
+    sheet('<h3>Come stai oggi?</h3><p class="muted small" style="margin:6px 0 18px">Leva adatta l’allenamento alla giornata. Puoi saltare questo passaggio.</p>' +
       '<div class="field"><label>Energia</label>' + seg('ckEnergy', [['low', 'Bassa'], ['ok', 'Normale'], ['high', 'Alta']], 'ok', 'segPick') + '</div>' +
       '<section class="card" style="padding:4px 16px">' + toggle('ckLegs', false, 'Gambe stanche', 'Per esempio dopo una partita di calcio: una serie in meno sugli esercizi per le gambe', 'tog') + '</section>' +
       '<button class="btn primary" data-a="go" data-v="' + wid + '">' + ICON.play + 'Inizia · ' + esc(WORKOUTS[wid].name) + '</button>');
@@ -264,10 +264,7 @@ const A = {
   },
   loadStep: (t) => { const e = curEx(); e.load = clamp(Math.round(((e.load || 0) + +t.dataset.v) * 2) / 2, 0, 60) || null; save(); render(); },
   exNav: (t) => { const a = S.active; a.idx = clamp(a.idx + +t.dataset.v, 0, a.ex.length - 1); save(); render(); window.scrollTo(0, 0); },
-  exList: () => {
-    const a = S.active;
-    openSheet('<h3 style="margin-bottom:14px">Esercizi di oggi</h3>' + a.ex.map((e, i) => { const d = e.sets.filter((s) => s.done).length; return '<button class="item" data-a="exJump" data-v="' + i + '"><span class="letter ' + (d === e.sets.length ? 'solid' : i === a.idx ? '' : 'gray') + '">' + (d === e.sets.length ? ICON.check : i + 1) + '</span><div class="f"><div class="t">' + esc(EX[e.x].n) + '</div><div class="s">' + d + '/' + e.sets.length + ' serie</div></div></button>'; }).join(''));
-  },
+  exList: () => showSheet('exList', null),
   exJump: (t) => { S.active.idx = +t.dataset.v; save(); closeSheet(); render(); window.scrollTo(0, 0); },
   pause: () => { const a = S.active; if (!a || a.pausedAt) return; a.pausedAt = Date.now(); save(); keepAwake(false); openOv({ mode: 'pause' }); },
   unpause: () => {
@@ -276,19 +273,19 @@ const A = {
     if (a.timer) a.timer.end += d;
     save(); closeOv(); keepAwake(true); render(); restoreTimer();
   },
-  sessMenu: () => openSheet('<h3 style="margin-bottom:6px">Allenamento in corso</h3><p class="muted small" style="margin-bottom:18px">Le serie fatte sono già salvate: puoi uscire e riprendere più tardi dalla schermata Oggi.</p>' +
+  sessMenu: () => sheet('<h3 style="margin-bottom:6px">Allenamento in corso</h3><p class="muted small" style="margin-bottom:18px">Le serie fatte sono già salvate: puoi uscire e riprendere più tardi dalla schermata Oggi.</p>' +
     '<button class="btn primary" data-a="finishAsk">' + ICON.check + 'Termina e salva</button><div class="sp10"></div>' +
     '<button class="btn ghost" data-a="pauseFromMenu">' + ICON.pause + 'Metti in pausa</button><div class="sp10"></div>' +
     '<button class="btn ghost" data-a="leave">Esci, riprendo dopo</button><div class="sp10"></div>' +
     '<button class="btn danger" data-a="discardAsk">Annulla allenamento</button>'),
   pauseFromMenu: () => { closeSheet(); A.pause(); },
   leave: () => { closeSheet(); closeOv(); keepAwake(false); go('home'); },
-  discardAsk: () => openSheet('<h3 style="margin-bottom:6px">Annullare l’allenamento?</h3><p class="muted small" style="margin-bottom:18px">Le serie di oggi non verranno salvate e la progressione non cambierà. Non si può annullare.</p><button class="btn danger" data-a="discard">Sì, annulla l’allenamento</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">No, continua</button>'),
+  discardAsk: () => sheet('<h3 style="margin-bottom:6px">Annullare l’allenamento?</h3><p class="muted small" style="margin-bottom:18px">Le serie di oggi non verranno salvate e la progressione non cambierà. Non si può annullare.</p><button class="btn danger" data-a="discard">Sì, annulla l’allenamento</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">No, continua</button>'),
   discard: () => { closeSheet(); stopAll(); S.active = null; save(); toast('Allenamento annullato'); go('home'); },
   finishAsk: () => {
     const a = S.active; const d = a.ex.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0); const all = a.ex.reduce((t, e) => t + e.sets.length, 0);
     if (d === all) { closeSheet(); finishSession(); return; }
-    openSheet('<h3 style="margin-bottom:6px">Terminare adesso?</h3><p class="muted small" style="margin-bottom:18px">Hai completato ' + d + ' serie su ' + all + '. Verranno salvate solo quelle fatte' + (d ? '' : ': nessuna, quindi l’allenamento non sarà registrato') + '.</p><button class="btn primary" data-a="finish">Termina e salva</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Continua l’allenamento</button>');
+    sheet('<h3 style="margin-bottom:6px">Terminare adesso?</h3><p class="muted small" style="margin-bottom:18px">Hai completato ' + d + ' serie su ' + all + '. Verranno salvate solo quelle fatte' + (d ? '' : ': nessuna, quindi l’allenamento non sarà registrato') + '.</p><button class="btn primary" data-a="finish">Termina e salva</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Continua l’allenamento</button>');
   },
   finish: () => { closeSheet(); finishSession(); },
   undoUp: (t) => {
@@ -303,35 +300,31 @@ const A = {
   },
 
   /* Programma */
-  openWorkout: (t) => openSheet(sheetWorkout(t.dataset.v)),
+  openWorkout: (t) => showSheet('workout', t.dataset.v),
   setsAdj: (t) => {
     const id = t.dataset.s; const slot = findSlot(id); const cur = resolveWorkout(slot.wid, P(), S).slots.find((s) => s.slot === id);
     const n = clamp((cur ? cur.sets : slot.s.sets) + +t.dataset.v, 1, 6);
-    S.plan.over[id] = Object.assign({}, S.plan.over[id], { sets: n }); save(); openSheet(sheetWorkout(slot.wid)); refreshBehind();
+    S.plan.over[id] = Object.assign({}, S.plan.over[id], { sets: n }); save(); showSheet('workout', slot.wid, { replace: true }); refreshBehind();
   },
-  swapSheet: (t) => {
-    const slot = findSlot(t.dataset.s); const cur = resolveWorkout(slot.wid, P(), S).slots.find((s) => s.slot === slot.s.id);
-    const opts = swapOptions(slot.s);
-    openSheet('<h3 style="margin-bottom:6px">Sostituisci esercizio</h3><p class="muted small" style="margin-bottom:16px">Il livello di ogni alternativa viene tenuto separato, così lo storico resta corretto.</p>' +
-      opts.map((k) => { const lvl = availIds(k, P()); const on = cur && cur.l === k; return '<button class="item" data-a="swapPick" data-s="' + slot.s.id + '" data-w="' + slot.wid + '" data-v="' + k + '"><span class="letter ' + (on ? 'solid' : 'gray') + '">' + (on ? ICON.check : ICON.swap) + '</span><div class="f"><div class="t">' + esc(LADDERS[k].name) + '</div><div class="s">' + esc(EX[lvl[0]].n) + (lvl.length > 1 ? ' e altri ' + (lvl.length - 1) + ' livelli' : '') + '</div></div></button>'; }).join('') +
-      '<div class="sp10"></div><button class="btn ghost" data-a="openWorkout" data-v="' + slot.wid + '">Indietro</button>');
-  },
+  swapSheet: (t) => showSheet('swap', { s: t.dataset.s, w: t.dataset.w }),
   swapPick: (t) => {
     const id = t.dataset.s; const l = t.dataset.v; const slot = findSlot(id);
     const o = Object.assign({}, S.plan.over[id]); if (l === slot.s.l) delete o.l; else o.l = l;
     if (o.l || o.sets) S.plan.over[id] = o; else delete S.plan.over[id];
-    save(); openSheet(sheetWorkout(t.dataset.w)); refreshBehind(); toast('Esercizio sostituito');
+    save(); navPop(); showSheet('workout', t.dataset.w, { replace: true }); refreshBehind(); toast('Esercizio sostituito');
   },
-  resetSlot: (t) => { delete S.plan.over[t.dataset.s]; save(); openSheet(sheetWorkout(t.dataset.w)); refreshBehind(); },
+  resetSlot: (t) => { delete S.plan.over[t.dataset.s]; save(); showSheet('workout', t.dataset.w, { replace: true }); refreshBehind(); },
 
   /* Esercizi */
-  openEx: (t) => openSheet(sheetEx(t.dataset.v)),
-  exHist: (t) => openSheet(sheetExHist(t.dataset.v)),
+  openEx: (t) => showSheet('ex', { id: t.dataset.v, ctx: t.dataset.ctx || '' }),
+  exSwipe: (t) => swipeEx(+t.dataset.v),
+  navBack: () => handleBack(),
+  exHist: (t) => showSheet('exHist', t.dataset.v),
   exclToggle: (t) => {
     const id = t.dataset.v; const p = P(); const k = p.excl.indexOf(id);
     if (k >= 0) p.excl.splice(k, 1); else p.excl.push(id);
     if (pdraft) pdraft.excl = p.excl.slice();
-    save(); openSheet(sheetEx(id)); refreshBehind(); toast(k >= 0 ? 'Esercizio rimesso nel programma' : 'Esercizio escluso: il programma usa un’alternativa');
+    save(); showSheet('ex', curSheet && curSheet.k === 'ex' ? curSheet.a : { id: id }, { replace: true }); refreshBehind(); toast(k >= 0 ? 'Esercizio rimesso nel programma' : 'Esercizio escluso: il programma usa un’alternativa');
   },
   libMus: (t) => { lib.m = t.dataset.v; render(); },
   libMine: () => { lib.mine = !lib.mine; render(); },
@@ -339,11 +332,11 @@ const A = {
 
   /* Progressi */
   pMode: (t) => { pmode = t.dataset.v; render(); },
-  openSession: (t) => openSheet(sheetSession(+t.dataset.v)),
-  delSessionAsk: (t) => openSheet('<h3 style="margin-bottom:6px">Eliminare questo allenamento?</h3><p class="muted small" style="margin-bottom:18px">Sparisce dallo storico e dalle statistiche. I livelli raggiunti restano come sono.</p><button class="btn danger" data-a="delSession" data-v="' + t.dataset.v + '">Sì, elimina</button><div class="sp10"></div><button class="btn ghost" data-a="openSession" data-v="' + t.dataset.v + '">No, torna indietro</button>'),
+  openSession: (t) => showSheet('session', +t.dataset.v),
+  delSessionAsk: (t) => sheet('<h3 style="margin-bottom:6px">Eliminare questo allenamento?</h3><p class="muted small" style="margin-bottom:18px">Sparisce dallo storico e dalle statistiche. I livelli raggiunti restano come sono.</p><button class="btn danger" data-a="delSession" data-v="' + t.dataset.v + '">Sì, elimina</button><div class="sp10"></div><button class="btn ghost" data-a="openSession" data-v="' + t.dataset.v + '">No, torna indietro</button>'),
   delSession: (t) => { S.sessions.splice(+t.dataset.v, 1); save(); closeSheet(); toast('Allenamento eliminato'); render(); },
   weightSheet: () => {
-    openSheet('<h3 style="margin-bottom:4px">Registra il peso</h3><p class="muted small" style="margin-bottom:16px">Al mattino, a digiuno, 2 volte a settimana.</p>' + field('fWeight', 'Peso di oggi (kg)', 'number', String(curWeight()), '', '0.1') + '<button class="btn primary" data-a="saveWeight">Salva</button>');
+    sheet('<h3 style="margin-bottom:4px">Registra il peso</h3><p class="muted small" style="margin-bottom:16px">Al mattino, a digiuno, 2 volte a settimana.</p>' + field('fWeight', 'Peso di oggi (kg)', 'number', String(curWeight()), '', '0.1') + '<button class="btn primary" data-a="saveWeight">Salva</button>');
     setTimeout(() => { const i = $('#fWeight'); if (i) { i.focus(); i.select(); } }, 200);
   },
   saveWeight: () => {
@@ -354,7 +347,7 @@ const A = {
   },
   delWeightAsk: (t) => {
     if (S.weights.length <= 1) return toast('Serve almeno una misurazione');
-    openSheet('<h3 style="margin-bottom:6px">Eliminare la misurazione del ' + esc(fmtD(t.dataset.v)) + '?</h3><div class="sp16"></div><button class="btn danger" data-a="delWeight" data-v="' + t.dataset.v + '">Elimina</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Annulla</button>');
+    sheet('<h3 style="margin-bottom:6px">Eliminare la misurazione del ' + esc(fmtD(t.dataset.v)) + '?</h3><div class="sp16"></div><button class="btn danger" data-a="delWeight" data-v="' + t.dataset.v + '">Elimina</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Annulla</button>');
   },
   delWeight: (t) => { S.weights = S.weights.filter((e) => e.d !== t.dataset.v); save(); closeSheet(); render(); },
 
@@ -396,7 +389,7 @@ const A = {
         if (!d || !d.profile) return toast('File di backup non valido');
         if (!S.profile) return applyImport(d);
         pendingImport = d;
-        openSheet('<h3 style="margin-bottom:6px">Sostituire i dati attuali?</h3><p class="muted small" style="margin-bottom:18px">Il backup contiene ' + plural(d.sessions.length, 'allenamento', 'allenamenti') + ' e ' + plural(d.weights.length, 'misurazione', 'misurazioni') + ' del peso. I dati di questo telefono (' + plural(S.sessions.length, 'allenamento', 'allenamenti') + ') verranno sostituiti.</p><button class="btn primary" data-a="importOk">Sì, importa il backup</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Annulla</button>');
+        sheet('<h3 style="margin-bottom:6px">Sostituire i dati attuali?</h3><p class="muted small" style="margin-bottom:18px">Il backup contiene ' + plural(d.sessions.length, 'allenamento', 'allenamenti') + ' e ' + plural(d.weights.length, 'misurazione', 'misurazioni') + ' del peso. I dati di questo telefono (' + plural(S.sessions.length, 'allenamento', 'allenamenti') + ') verranno sostituiti.</p><button class="btn primary" data-a="importOk">Sì, importa il backup</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Annulla</button>');
       };
       r.onerror = () => toast('Impossibile leggere il file');
       r.readAsText(f);
@@ -404,8 +397,11 @@ const A = {
     inp.click();
   },
   importOk: () => { if (pendingImport) applyImport(pendingImport); },
-  resetAsk: () => openSheet('<h3 style="margin-bottom:6px">Cancellare tutti i dati?</h3><p class="muted small" style="margin-bottom:18px">Profilo, allenamenti, livelli e pesi verranno eliminati da questo telefono. Non si può annullare: se vuoi, esporta prima un backup.</p><button class="btn ghost" data-a="export">' + ICON.dl + 'Esporta backup</button><div class="sp10"></div><button class="btn danger" data-a="reset">Sì, cancella tutto</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Annulla</button>'),
+  resetAsk: () => sheet('<h3 style="margin-bottom:6px">Cancellare tutti i dati?</h3><p class="muted small" style="margin-bottom:18px">Profilo, allenamenti, livelli e pesi verranno eliminati da questo telefono. Non si può annullare: se vuoi, esporta prima un backup.</p><button class="btn ghost" data-a="export">' + ICON.dl + 'Esporta backup</button><div class="sp10"></div><button class="btn danger" data-a="reset">Sì, cancella tutto</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Annulla</button>'),
   reset: () => { stopAll(); S = fresh(); save(); closeSheet(); ob = null; pdraft = null; summary = null; route = 'home'; render(); },
+  bmiInfo: () => sheet('<h3 style="margin-bottom:8px">Cos’è l’IMC</h3><p class="muted small" style="margin-bottom:12px">L’indice di massa corporea è il peso in chilogrammi diviso per il quadrato dell’altezza in metri. Per esempio: 65,5 kg e 1,75 m danno 65,5 ÷ (1,75 × 1,75) = 21,4.</p>' +
+    '<section class="card">' + [['Sotto 18,5', 'Sottopeso'], ['18,5 – 24,9', 'Normopeso'], ['25 – 29,9', 'Sovrappeso'], ['30 e oltre', 'Obesità']].map((r) => '<div class="lrow"><div class="f">' + r[1] + '</div><b>' + r[0] + '</b></div>').join('') + '</section>' +
+    '<p class="muted small">È solo un indicatore di massima: non distingue muscoli e grasso. Chi è molto muscoloso può avere un IMC alto pur essendo magro, quindi va letto insieme a come ti senti, alla forza e alla circonferenza vita. Le fasce valgono per gli adulti.</p>'),
   newsOk: () => { S.meta.news = false; save(); closeSheet(); },
   newsProfile: () => { S.meta.news = false; save(); closeSheet(); go('profile'); },
 
@@ -440,19 +436,72 @@ function restoreTimer() {
   const a = S.active; if (!a) return;
   if (a.pausedAt) { openOv({ mode: 'pause' }); return; }
   const t = a.timer; if (!t || !a.ex[t.ei]) return;
-  if (t.end > Date.now()) openOv({ mode: 'rest', end: t.end, total: t.total, ei: t.ei, si: t.si, nextLbl: t.nextLbl, next: t.next });
+  if (t.end > Date.now()) openOv({ mode: 'rest', end: t.end, total: t.total, ei: t.ei, si: t.si, nextLbl: t.nextLbl, next: t.next, nextX: t.nextX });
   else { a.timer = null; save(); }
 }
 
-/* ---------- Tasto indietro del telefono ----------
-   Quando l'app non è nella schermata Oggi (o c'è un pannello aperto) aggiunge una voce
-   alla cronologia: il tasto indietro la consuma e Leva torna indietro al suo interno
-   invece di chiudersi. Dalla schermata Oggi, senza pannelli aperti, l'app si chiude. */
+/* ---------- Navigazione e tasto indietro ----------
+   NAV è la cronologia interna: prima di ogni cambio di schermata o di pannello si salva
+   com'era lo schermo. Il tasto indietro del telefono ripristina lo stato precedente
+   (per esempio la scheda di allenamento da cui avevi aperto un esercizio).
+   Una sola voce "di guardia" nella cronologia del browser intercetta il tasto. */
+const NAV = [];
+let curSheet = null;
+const SHEETS = {
+  workout: (a) => sheetWorkout(a),
+  ex: (a) => sheetEx(a.id, exCtx(a)),
+  exHist: (a) => sheetExHist(a),
+  session: (a) => sheetSession(a),
+  exList: () => {
+    const a = S.active; if (!a) return '';
+    return '<h3 style="margin-bottom:14px">Esercizi di oggi</h3>' + a.ex.map((e, i) => { const d = e.sets.filter((q) => q.done).length; return '<button class="item" data-a="exJump" data-v="' + i + '"><span class="letter ' + (d === e.sets.length ? 'solid' : i === a.idx ? '' : 'gray') + '">' + (d === e.sets.length ? ICON.check : i + 1) + '</span><div class="f"><div class="t">' + esc(EX[e.x].n) + '</div><div class="s">' + d + '/' + e.sets.length + ' serie</div></div></button>'; }).join('');
+  },
+  swap: (a) => {
+    const slot = findSlot(a.s); const cur = resolveWorkout(slot.wid, P(), S).slots.find((q) => q.slot === slot.s.id);
+    return '<h3 style="margin-bottom:6px">Sostituisci esercizio</h3><p class="muted small" style="margin-bottom:16px">Il livello di ogni alternativa viene tenuto separato, così lo storico resta corretto.</p>' +
+      swapOptions(slot.s).map((k) => { const lvl = availIds(k, P()); const on = cur && cur.l === k; return '<button class="item" data-a="swapPick" data-s="' + slot.s.id + '" data-w="' + slot.wid + '" data-v="' + k + '"><span class="letter ' + (on ? 'solid' : 'gray') + '">' + (on ? ICON.check : ICON.swap) + '</span><div class="f"><div class="t">' + esc(LADDERS[k].name) + '</div><div class="s">' + esc(EX[lvl[0]].n) + (lvl.length > 1 ? ' e altri ' + (lvl.length - 1) + ' livelli' : '') + '</div></div></button>'; }).join('') +
+      '<div class="sp10"></div><button class="btn ghost" data-a="navBack">Indietro</button>';
+  }
+};
+/* Lista di esercizi in cui scorrere, in base a dove è stato aperto l'esercizio. */
+function exCtx(a) {
+  let list = null;
+  if (a.ctx && a.ctx.indexOf('w:') === 0 && S.profile) list = resolveWorkout(a.ctx.slice(2), P(), S).slots.map((q) => q.x);
+  else if (a.ctx === 's' && S.active) list = S.active.ex.map((e) => e.x);
+  else if (a.ctx === 'lib') list = libIds();
+  if (!list || list.indexOf(a.id) < 0 || list.length < 2) return null;
+  return { list: list, i: list.indexOf(a.id) };
+}
+function navSnap() {
+  const open = $('#sheet').classList.contains('show');
+  return { r: route, sh: open && curSheet && curSheet.k !== 'raw' ? JSON.parse(JSON.stringify(curSheet)) : null, ix: route === 'session' && S.active ? S.active.idx : null };
+}
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function navPush() { const c = navSnap(); const top = NAV[NAV.length - 1]; if (!top || !same(top, c)) NAV.push(c); if (NAV.length > 60) NAV.shift(); }
+function navPop() { NAV.pop(); }
+function showSheet(k, a, opt) {
+  if (!(opt && opt.replace)) { const next = { k: k, a: a }; if (!same(curSheet, next) || !$('#sheet').classList.contains('show')) navPush(); }
+  curSheet = { k: k, a: a }; openSheet(SHEETS[k](a));
+}
+function sheet(html) { navPush(); curSheet = { k: 'raw' }; openSheet(html); }
+function restore(st) {
+  if (st.r === 'session' && !S.active) return false;
+  if (st.r === 'summary' && !summary) return false;
+  if (route === 'session' && st.r !== 'session') { closeOv(); keepAwake(false); }
+  if (st.r === 'session' && st.ix != null && S.active) S.active.idx = Math.min(st.ix, S.active.ex.length - 1);
+  if (st.r !== 'profile') pdraft = null;
+  route = st.r; curSheet = null; $('#sheet').classList.remove('show');
+  render(); window.scrollTo(0, 0);
+  if (st.sh && SHEETS[st.sh.k]) { const html = SHEETS[st.sh.k](st.sh.a); if (html) { curSheet = st.sh; openSheet(html); } }
+  if (route === 'session') { keepAwake(true); restoreTimer(); }
+  return true;
+}
+
 let navGuard = false, navIgnore = false;
 function isDeep() {
   if ($('#sheet').classList.contains('show') || ov) return true;
   if (!S.profile) return !!(ob && ob.step > 0);
-  return route !== 'home';
+  return route !== 'home' || NAV.length > 0;
 }
 function syncHistory() {
   const deep = isDeep();
@@ -460,16 +509,42 @@ function syncHistory() {
   else if (!deep && navGuard && !navIgnore) { navIgnore = true; history.back(); }
 }
 function handleBack() {
-  if ($('#sheet').classList.contains('show')) { if (S.meta && S.meta.news) { S.meta.news = false; save(); } closeSheet(); return; }
-  if (ov) { if (ov.mode === 'pause') A.leave(); else { closeOv(); render(); } return; }
+  if (ov) { if (ov.mode === 'pause') { closeOv(); keepAwake(false); } else { closeOv(); render(); return; } }
   if (!S.profile) { if (ob && ob.step > 0) A.obBack(); return; }
-  if (route === 'session') { A.leave(); return; }
-  if (route !== 'home') { summary = null; go('home'); }
+  if (S.meta && S.meta.news) { S.meta.news = false; save(); }
+  const cur = navSnap();
+  while (NAV.length) { const st = NAV.pop(); if (same(st, cur)) continue; if (restore(st)) return; }
+  if ($('#sheet').classList.contains('show')) { closeSheet(); return; }
+  if (route !== 'home') { summary = null; restore({ r: 'home', sh: null, ix: null }); }
 }
 window.addEventListener('popstate', () => {
   if (navIgnore) { navIgnore = false; navGuard = false; syncHistory(); return; }
   navGuard = false; handleBack(); syncHistory();
 });
+
+/* ---------- Scorrimento laterale ---------- */
+function swipeEx(dir) {
+  if (!curSheet || curSheet.k !== 'ex') return;
+  const c = exCtx(curSheet.a); if (!c) return;
+  const n = c.i + dir; if (n < 0 || n >= c.list.length) return;
+  showSheet('ex', { id: c.list[n], ctx: curSheet.a.ctx }, { replace: true });
+  const pane = $('#sheetBody'); pane.classList.remove('slideL', 'slideR'); void pane.offsetWidth; pane.classList.add(dir > 0 ? 'slideL' : 'slideR');
+}
+let tStart = null;
+document.addEventListener('touchstart', (ev) => { const t = ev.touches[0]; tStart = { x: t.clientX, y: t.clientY, el: ev.target, ts: Date.now() }; }, { passive: true });
+document.addEventListener('touchend', (ev) => {
+  if (!tStart) return; const t = ev.changedTouches[0]; const dx = t.clientX - tStart.x, dy = t.clientY - tStart.y; const el = tStart.el; tStart = null;
+  if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+  if (el.closest && el.closest('.stepper, .pills, input, .seg, .rirs')) return;
+  const dir = dx < 0 ? 1 : -1;
+  if ($('#sheet').classList.contains('show')) { if (el.closest('#sheet')) swipeEx(dir); return; }
+  if (route === 'session' && S.active && !ov) {
+    const a = S.active; const n = a.idx + dir; if (n < 0 || n >= a.ex.length) return;
+    a.idx = n; save(); render(); window.scrollTo(0, 0);
+    const v = document.querySelector('#app .view'); if (v) v.classList.add(dir > 0 ? 'slideL' : 'slideR');
+  }
+}, { passive: true });
+
 
 /* ---------- Eventi ---------- */
 document.addEventListener('click', (ev) => {

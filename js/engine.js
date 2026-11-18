@@ -248,3 +248,12 @@ function weightTrend(st) {
   const r = avg(0, 7), q = avg(14, 21); if (r == null || q == null) return null;
   const perWeek = (r - q) / 2; return perWeek < 0.1 ? 'flat' : perWeek > 0.5 ? 'fast' : 'ok';
 }
+
+/* IMC = kg / m². Fasce per adulti: < 18,5 sottopeso, 18,5–24,9 normopeso, 25–29,9 sovrappeso, ≥ 30 obesità. */
+function bmi(kg, cm) { return kg > 0 && cm > 0 ? kg / Math.pow(cm / 100, 2) : null; }
+function bmiCat(v) {
+  if (v < 18.5) return { n: 'Sottopeso', cls: 'or' };
+  if (v < 25) return { n: 'Normopeso', cls: 'ac' };
+  if (v < 30) return { n: 'Sovrappeso', cls: 'or' };
+  return { n: 'Obesità', cls: 'or' };
+}

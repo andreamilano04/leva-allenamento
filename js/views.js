@@ -51,9 +51,21 @@ function vHome() {
     : 'Per aumentare la massa servono un leggero surplus calorico e abbastanza proteine: come riferimento generale si indicano spesso 1,6–2,2 g per kg al giorno. Per un piano su misura rivolgiti a un nutrizionista.';
   h += '<div class="sec-h"><h3>Obiettivo peso</h3><button class="link" data-a="weightSheet">+ Registra</button></div>';
   h += '<section class="card"><div class="row" style="margin-bottom:12px"><div class="f"><span class="big-n">' + fmt1(cw) + '<small>kg</small></span></div><div class="muted small" style="text-align:right">obiettivo<br><b style="color:var(--tx)">' + fmt1(p.goal) + ' kg</b></div></div>' +
-    '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><div class="muted small" style="margin-top:8px">' + (Math.abs(cw - p.goal) < 0.05 ? 'Obiettivo raggiunto!' : (cw < p.goal ? 'Mancano ' : 'Sei sopra di ') + fmt1(Math.abs(p.goal - cw)) + ' kg') + '</div>' + weightMini() + '</section>';
+    '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><div class="muted small" style="margin-top:8px">' + (Math.abs(cw - p.goal) < 0.05 ? 'Obiettivo raggiunto!' : (cw < p.goal ? 'Mancano ' : 'Sei sopra di ') + fmt1(Math.abs(p.goal - cw)) + ' kg') + '</div>' + bmiBox(cw, p.height, p.goal) + weightMini() + '</section>';
   if (S.settings.nutri !== false) h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.food + '</span><div class="f"><h4 style="margin-bottom:4px">Alimentazione</h4><p class="muted small">' + esc(tip) + '</p><p class="muted tiny" style="margin-top:6px">Indicazione generale, non personalizzata.' + (trend ? '' : ' I suggerimenti sull’andamento compaiono dopo almeno 3 settimane e 6 pesate.') + '</p></div></section>';
   return h;
+}
+
+/* IMC (indice di massa corporea) = peso (kg) / altezza (m)². Fasce OMS per gli adulti. */
+function bmiBox(kg, cm, goal) {
+  const v = bmi(kg, cm); if (!v) return '';
+  const c = bmiCat(v); const lo = 15, hi = 35; const pos = (x) => clamp((x - lo) / (hi - lo) * 100, 0, 100);
+  const g = goal ? bmi(goal, cm) : null;
+  return '<div class="bmi"><div class="row"><div class="f"><div class="eyebrow">IMC · indice di massa corporea</div><div style="margin-top:4px"><b style="font-size:22px">' + fmt1(v) + '</b> <span class="tag ' + c.cls + '">' + c.n + '</span></div></div><button class="icon-btn sm" data-a="bmiInfo" aria-label="Cos’è l’IMC">' + ICON.info + '</button></div>' +
+    '<div class="bmi-bar"><span style="width:' + pos(18.5) + '%"></span><span style="width:' + (pos(25) - pos(18.5)) + '%"></span><span style="width:' + (pos(30) - pos(25)) + '%"></span><span style="flex:1"></span>' +
+    (g ? '<em class="goal" style="left:' + pos(g) + '%" title="obiettivo"></em>' : '') + '<em style="left:' + pos(v) + '%"></em></div>' +
+    '<div class="bmi-l"><span>18,5</span><span>25</span><span>30</span></div>' +
+    (g ? '<p class="muted tiny" style="margin-top:6px">Con il peso obiettivo (' + fmt1(goal) + ' kg) il tuo IMC sarebbe ' + fmt1(g) + ' (' + bmiCat(g).n.toLowerCase() + ').</p>' : '') + '</div>';
 }
 
 /* Mini grafico del peso e promemoria della pesata (2 volte a settimana). */
@@ -118,7 +130,7 @@ function sheetWorkout(wid) {
   h += '<div class="sp10"></div>';
   w.slots.forEach((s, i) => {
     const e = EX[s.x]; const over = S.plan.over[s.slot] || {};
-    h += '<div class="card tight" style="margin-bottom:8px"><div class="row"><span class="letter gray" style="width:34px;height:34px;border-radius:11px;font-size:14px">' + (i + 1) + '</span><div class="f"><div class="b">' + esc(e.n) + '</div><div class="muted small">' + s.sets + ' × ' + rangeTxt(s.r, s.u, s.side) + ' · rec. ' + s.rest + ' s</div></div><button class="icon-btn sm" data-a="openEx" data-v="' + s.x + '" aria-label="Dettagli">' + ICON.info + '</button></div>' +
+    h += '<div class="card tight" style="margin-bottom:8px"><div class="row"><span class="letter gray" style="width:34px;height:34px;border-radius:11px;font-size:14px">' + (i + 1) + '</span><div class="f" data-a="openEx" data-v="' + s.x + '" data-ctx="w:' + wid + '" style="cursor:pointer"><div class="b">' + esc(e.n) + '</div><div class="muted small">' + s.sets + ' × ' + rangeTxt(s.r, s.u, s.side) + ' · rec. ' + s.rest + ' s</div></div><button class="icon-btn sm" data-a="openEx" data-v="' + s.x + '" data-ctx="w:' + wid + '" aria-label="Dettagli">' + ICON.info + '</button></div>' +
       '<div class="row" style="margin-top:10px"><div class="row f" style="gap:6px"><button class="icon-btn sm" data-a="setsAdj" data-s="' + s.slot + '" data-v="-1" aria-label="Una serie in meno">' + ICON.minus + '</button><span class="small b" style="min-width:58px;text-align:center">' + plural(s.sets, 'serie', 'serie') + '</span><button class="icon-btn sm" data-a="setsAdj" data-s="' + s.slot + '" data-v="1" aria-label="Una serie in più">' + ICON.plus + '</button></div>' +
       '<button class="btn ghost xs" data-a="swapSheet" data-s="' + s.slot + '" data-w="' + wid + '">' + ICON.swap + 'Sostituisci</button>' +
       ((over.l || over.sets) ? '<button class="btn xs" style="color:var(--mu)" data-a="resetSlot" data-s="' + s.slot + '" data-w="' + wid + '">Ripristina</button>' : '') + '</div></div>';
@@ -146,9 +158,17 @@ function vLibrary() {
   h += '<div id="libList">' + libList(p, inPlan) + '</div>';
   return h;
 }
+function libIds() {
+  const p = S.profile; const pr = program(p, S); const inPlan = {}; pr.workouts.forEach((w) => w.slots.forEach((q) => { inPlan[q.x] = 1; }));
+  return libFilter(p, inPlan);
+}
 function libList(p, inPlan) {
+  const ids = libFilter(p, inPlan);
+  return libRender(ids, p, inPlan);
+}
+function libFilter(p, inPlan) {
   const q = lib.q.trim().toLowerCase();
-  const ids = Object.keys(EX).filter((id) => {
+  return Object.keys(EX).filter((id) => {
     const e = EX[id];
     if (lib.m && e.m !== lib.m && e.s.indexOf(lib.m) < 0) return false;
     if (lib.mine && !isAvail(id, p)) return false;
@@ -156,18 +176,22 @@ function libList(p, inPlan) {
     if (q && (e.n + ' ' + LADDERS[e.l].name + ' ' + MUSCLES[e.m]).toLowerCase().indexOf(q) < 0) return false;
     return true;
   });
+}
+function libRender(ids, p, inPlan) {
   if (!ids.length) return '<div class="empty">Nessun esercizio con questi filtri.</div>';
   return ids.map((id) => {
     const e = EX[id]; const ok = isAvail(id, p); const n = LADDERS[e.l].lv.length;
-    return '<button class="item ' + (ok ? '' : 'off') + '" data-a="openEx" data-v="' + id + '"><span class="letter ' + (inPlan[id] ? 'solid' : '') + '">' + (inPlan[id] ? esc(inPlan[id][0]) : ICON.muscle) + '</span><div class="f"><div class="t">' + esc(e.n) + '</div><div class="s">' + MUSCLES[e.m] + (n > 1 ? ' · liv. ' + (e.i + 1) + '/' + n : '') + (e.u === 's' ? ' · a tempo' : '') + (ok ? '' : ' · ' + esc(whyUnavail(id, p).join(', '))) + '</div></div>' + (n > 1 ? dots(e.i, n) : '') + '</button>';
+    return '<button class="item ' + (ok ? '' : 'off') + '" data-a="openEx" data-v="' + id + '" data-ctx="lib"><span class="letter ' + (inPlan[id] ? 'solid' : '') + '">' + (inPlan[id] ? esc(inPlan[id][0]) : ICON.muscle) + '</span><div class="f"><div class="t">' + esc(e.n) + '</div><div class="s">' + MUSCLES[e.m] + (n > 1 ? ' · liv. ' + (e.i + 1) + '/' + n : '') + (e.u === 's' ? ' · a tempo' : '') + (ok ? '' : ' · ' + esc(whyUnavail(id, p).join(', '))) + '</div></div>' + (n > 1 ? dots(e.i, n) : '') + '</button>';
   }).join('');
 }
 
-function sheetEx(id) {
+function sheetEx(id, ctx) {
   const p = S.profile; const e = EX[id]; const L = LADDERS[e.l]; const n = L.lv.length; const ok = isAvail(id, p);
   const prev = e.i > 0 ? L.lv[e.i - 1].id : null; const next = e.i < n - 1 ? L.lv[e.i + 1].id : null;
   const excluded = p.excl.indexOf(id) >= 0;
-  let h = '<div class="eyebrow">' + esc(L.name) + (n > 1 ? ' · livello ' + (e.i + 1) + ' di ' + n : '') + '</div><h2 style="margin:6px 0 12px">' + esc(e.n) + '</h2>';
+  let h = '';
+  if (ctx) h += '<div class="exnav"><button class="icon-btn sm" data-a="exSwipe" data-v="-1" ' + (ctx.i > 0 ? '' : 'disabled') + ' aria-label="Esercizio precedente">' + ICON.chevL + '</button><div class="f center"><div class="exdots">' + ctx.list.map((x, i) => '<i class="' + (i === ctx.i ? 'on' : '') + '"></i>').join('') + '</div><span class="muted tiny">' + (ctx.i + 1) + ' di ' + ctx.list.length + ' · scorri per cambiare</span></div><button class="icon-btn sm" data-a="exSwipe" data-v="1" ' + (ctx.i < ctx.list.length - 1 ? '' : 'disabled') + ' aria-label="Esercizio successivo">' + ICON.chevR + '</button></div>';
+  h += '<div class="eyebrow">' + esc(L.name) + (n > 1 ? ' · livello ' + (e.i + 1) + ' di ' + n : '') + '</div><h2 style="margin:6px 0 12px">' + esc(e.n) + '</h2>';
   h += '<div class="tags"><span class="tag ac">' + MUSCLES[e.m] + '</span>' + e.s.map((m) => '<span class="tag">' + MUSCLES[m] + '</span>').join('') + (e.u === 's' ? '<span class="tag">' + ICON.clock + 'a tempo</span>' : '') + (e.r ? '<span class="tag">' + rangeTxt(e.r, e.u) + '</span>' : '') + '</div>';
   const an = animBox(id); if (an) h += an + '<p class="anim-note">Animazione indicativa: segui anche i passaggi qui sotto.</p>';
   h += '<p class="desc">' + esc(e.d) + '</p>';
@@ -349,7 +373,7 @@ function vSession() {
   h += '<div class="row"><div class="f"><div class="eyebrow">Esercizio ' + (a.idx + 1) + ' di ' + a.ex.length + '</div></div><button class="link" data-a="exList">Tutti gli esercizi</button></div>';
   h += '<h1 class="ex-name">' + esc(x.n) + '</h1>';
   h += '<div class="tags"><span class="tag ac">' + MUSCLES[x.m] + '</span><span class="tag">' + e.sets.length + ' × ' + rangeTxt(e.r, u, e.side) + '</span><span class="tag">' + ICON.clock + 'rec. ' + e.rest + ' s</span></div>';
-  h += animBox(e.x, 'sm');
+  h += animBox(e.x) + '<p class="anim-note">Scorri a destra o a sinistra per cambiare esercizio</p>';
   const ids = L.lv.map((l) => l.id);
   if (ids.length > 1) {
     const prev = nextAvail(e.x, S.profile, -1), next = nextAvail(e.x, S.profile, 1);
@@ -359,7 +383,7 @@ function vSession() {
   if (last) h += '<div class="beat"><span class="ic">' + ICON.target + '</span><div class="f"><div class="eyebrow" style="color:var(--ac)">Da battere · ' + fmtD(last.d) + '</div><b>' + last.reps.map((r) => (r == null ? '–' : r)).join(' · ') + ' ' + unit(u) + '</b>' + (last.load ? '<span class="muted small"> · zaino ' + fmt1(last.load) + ' kg</span>' : '') + '</div></div>';
   else h += '<div class="beat"><span class="ic">' + ICON.bolt + '</span><div class="f"><div class="eyebrow" style="color:var(--ac)">Prima volta</div><span class="small">Scegli un ritmo che ti permetta una tecnica pulita.</span></div></div>';
   if (e.adapt) h += '<p class="adapt">' + esc(e.adapt) + '</p>';
-  h += '<p class="desc">' + esc(x.d) + ' <button class="link" data-a="openEx" data-v="' + e.x + '">Istruzioni</button></p>';
+  h += '<p class="desc">' + esc(x.d) + ' <button class="link" data-a="openEx" data-v="' + e.x + '" data-ctx="s">Istruzioni</button></p>';
   if (e.note) h += '<p class="note">' + esc(e.note) + '</p>';
   if (x.eq.indexOf('backpack') >= 0) h += '<div class="load"><div class="f">Peso nello zaino <span class="muted tiny">(facoltativo)</span></div><div class="stepper" style="flex:none"><button data-a="loadStep" data-v="-0.5" aria-label="Meno peso">' + ICON.minus + '</button><span class="v" style="font-size:19px;min-width:64px">' + (e.load ? fmt1(e.load) : '–') + '<small>kg</small></span><button data-a="loadStep" data-v="0.5" aria-label="Più peso">' + ICON.plus + '</button></div></div>';
   h += e.sets.map((s, i) => '<div class="set ' + (s.done ? 'done' : '') + '"><span class="n">' + (i + 1) + '</span>' +

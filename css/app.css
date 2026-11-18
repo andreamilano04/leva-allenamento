@@ -298,3 +298,29 @@ body.full #tabbar{display:none}
 .anim svg{display:block;width:100%;height:auto;max-height:230px}
 .anim.sm svg{max-height:168px}
 .anim-note{font-size:11.5px;color:var(--mu);text-align:center;margin-top:6px}
+
+/* Navigazione tra esercizi */
+.exnav{display:flex;align-items:center;gap:10px;margin:-6px 0 16px}
+.exdots{display:flex;gap:4px;justify-content:center;margin-bottom:5px}
+.exdots i{width:6px;height:6px;border-radius:50%;background:var(--s4)}
+.exdots i.on{width:18px;border-radius:9px;background:var(--ac)}
+.icon-btn:disabled{opacity:.3}
+@keyframes inL{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes inR{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
+.slideL{animation:inL .22s var(--ease)}.slideR{animation:inR .22s var(--ease)}
+/* IMC */
+.bmi{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.bmi-bar{position:relative;display:flex;height:10px;border-radius:99px;overflow:visible;margin-top:12px}
+.bmi-bar span{height:100%}
+.bmi-bar span:nth-child(1){background:#5C6B8A;border-radius:99px 0 0 99px}
+.bmi-bar span:nth-child(2){background:var(--ac)}
+.bmi-bar span:nth-child(3){background:#E9B23A}
+.bmi-bar span:nth-child(4){background:var(--or);border-radius:0 99px 99px 0}
+.bmi-bar em{position:absolute;top:-5px;width:4px;height:20px;margin-left:-2px;border-radius:3px;background:#fff;box-shadow:0 0 0 2px var(--s1)}
+.bmi-bar em.goal{background:transparent;border:2px dashed #fff;box-shadow:none;width:6px;margin-left:-3px;opacity:.6}
+.bmi-l{position:relative;height:16px;font-size:10.5px;color:var(--mu);margin-top:4px}
+.bmi-l span{position:absolute;transform:translateX(-50%)}
+.bmi-l span:nth-child(1){left:17.5%}.bmi-l span:nth-child(2){left:50%}.bmi-l span:nth-child(3){left:75%}
+.ring.small{width:176px;height:176px;margin:10px 0 12px}.ring.small .t b{font-size:46px}
+#ov{overflow-y:auto}
+#ov .in{margin:auto 0}
