@@ -66,10 +66,19 @@ test('Ogni scheda ha almeno 4 esercizi, anche a solo corpo libero', () => {
 test('La durata stimata rispetta quella scelta (±5 min)', () => {
   [30, 45, 60].forEach((dur) => prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], dur)).workouts.forEach((w) => ok(w.min <= dur + 5, w.wid + ': ' + w.min + ' min con durata ' + dur)));
 });
+test('Priorità parte alta: a 60 min almeno 10 serie a settimana per petto, schiena, spalle e braccia; gambe almeno a mantenimento', () => {
+  const m = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 60, { focus: 'upper' })));
+  ['pet', 'dor', 'spa', 'bic', 'tri'].forEach((k) => ok(m[k] >= 10, k + ' = ' + m[k]));
+  ['qua', 'glu'].forEach((k) => ok(m[k] >= 4, k + ' = ' + m[k]));
+});
+test('Alimentazione: calorie e proteine plausibili', () => {
+  const n = R('nutriPlan')(profile([], [0, 2, 4], 60, { height: 175, age: 22, sex: 'm', matchDates: ['2026-12-01'] }), 65.5);
+  ok(n.kcal > 2600 && n.kcal < 3300, 'kcal ' + n.kcal); ok(n.pLo === 105 && n.pHi === 144, 'proteine ' + n.pLo + '-' + n.pHi); ok(n.carb > 250 && n.fat > 50, 'macro');
+});
 test('Volume: i grandi muscoli sempre coperti, il programma completo a 60 minuti', () => {
-  const m45 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 45)));
+  const m45 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 45, { focus: 'bal' })));
   ['pet', 'dor', 'qua', 'glu'].forEach((k) => ok(m45[k] >= 8, '45 min: ' + k + ' = ' + m45[k])); ok(m45.fem >= 6, '45 min: femorali');
-  const m60 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 60)));
+  const m60 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 60, { focus: 'bal' })));
   ['fem', 'pol', 'core'].forEach((k) => ok(m60[k] >= 3, '60 min: ' + k + ' = ' + m60[k]));
 });
 test('Le zone da proteggere escludono gli esercizi che le sollecitano', () => {

@@ -35,12 +35,12 @@ function render() {
   else if (route === 'summary' && summary) html = vSummary();
   else {
     if (route === 'session' || route === 'summary') route = 'home';
-    html = ({ home: vHome, plan: vPlan, library: vLibrary, progress: vProgress, profile: vProfile, cal: vCal })[route]();
+    html = ({ home: vHome, plan: vPlan, library: vLibrary, progress: vProgress, profile: vProfile, cal: vCal, food: vFood })[route]();
   }
   const same = lastRoute === route && !!S.profile; lastRoute = route; const y = window.scrollY;
   const app = $('#app'); app.innerHTML = '<div class="view' + (same ? '' : ' enter') + '">' + html + '</div>';
   if (same) window.scrollTo(0, y);
-  $('#tabbar .in').innerHTML = TABS.map((t) => '<button data-a="tab" data-v="' + t[0] + '" class="' + (route === t[0] || (route === 'cal' && t[0] === 'plan') ? 'on' : '') + '" aria-label="' + t[1] + '"' + (route === t[0] ? ' aria-current="page"' : '') + '>' + ICON[t[2]] + t[1] + '</button>').join('');
+  $('#tabbar .in').innerHTML = TABS.map((t) => '<button data-a="tab" data-v="' + t[0] + '" class="' + (route === t[0] || (route === 'cal' && t[0] === 'plan') || (route === 'food' && t[0] === 'home') ? 'on' : '') + '" aria-label="' + t[1] + '"' + (route === t[0] ? ' aria-current="page"' : '') + '>' + ICON[t[2]] + t[1] + '</button>').join('');
   syncHistory();
 }
 function go(r) { if (r !== route) navPush(); if (r !== 'profile') pdraft = null; route = r; render(); window.scrollTo(0, 0); }
@@ -423,11 +423,13 @@ function syncInputs(d) {
   if (v('fH') != null) d.height = n('fH');
   if (v('fW') != null) d.weight = n('fW');
   if (v('fG') != null) d.goal = n('fG');
+  if (v('fAge') != null) d.age = n('fAge');
 }
 function validBody(d, withWeight) {
   if (!(d.height >= 120 && d.height <= 230)) return 'Inserisci un’altezza valida (120–230 cm)';
   if (withWeight && !(d.weight >= 30 && d.weight <= 200)) return 'Inserisci un peso valido (30–200 kg)';
   if (!(d.goal >= 30 && d.goal <= 200)) return 'Inserisci un peso obiettivo valido (30–200 kg)';
+  if (d.age != null && !(d.age >= 14 && d.age <= 90)) return 'Inserisci un’età valida (14–90 anni)';
   return '';
 }
 function toggleDay(arr, i) {
@@ -612,7 +614,7 @@ const A = {
   delWeight: (t) => { S.weights = S.weights.filter((e) => e.d !== t.dataset.v); save(); closeSheet(); render(); },
 
   /* Profilo */
-  pPick: (t) => { const k = { pObj: 'obj', pLevel: 'level', pDur: 'dur' }[t.parentNode.id]; S.profile[k] = k === 'dur' ? +t.dataset.v : t.dataset.v; commitProfile(true); },
+  pPick: (t) => { const k = { pObj: 'obj', pLevel: 'level', pDur: 'dur', pFocus: 'focus', pSex: 'sex' }[t.parentNode.id]; S.profile[k] = k === 'dur' ? +t.dataset.v : t.dataset.v; commitProfile(true); },
   dayPick: (t) => { toggleDay(ob.d.wdays, +t.dataset.v); render(); },
   calDay: (t) => {
     const w = S.profile.wdays; const i = +t.dataset.v;

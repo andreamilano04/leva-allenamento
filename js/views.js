@@ -50,13 +50,13 @@ function vHome() {
 
   const sw = startWeight(); const pct = p.goal === sw ? 100 : clamp(((cw - sw) / (p.goal - sw)) * 100, 0, 100);
   const trend = weightTrend(S); const up = p.goal > sw;
-  const tip = trend === 'flat' && up ? 'Da almeno tre settimane il peso è stabile. Se vuoi aumentare, prova ad aumentare un po’ le porzioni o ad aggiungere uno spuntino, e ricontrolla tra due settimane.'
+  const tip = trend === 'flat' && up ? 'Da almeno tre settimane il peso è quasi fermo: aggiungi 150–200 kcal al giorno e ricontrolla tra due settimane.'
     : trend === 'fast' && up ? 'Il peso sta salendo più di mezzo chilo a settimana: se vuoi limitare l’aumento di grasso, puoi rallentare un po’.'
     : 'Per aumentare la massa servono un leggero surplus calorico e abbastanza proteine: come riferimento generale si indicano spesso 1,6–2,2 g per kg al giorno. Per un piano su misura rivolgiti a un nutrizionista.';
   h += '<div class="sec-h"><h3>Obiettivo peso</h3><button class="link" data-a="weightSheet">+ Registra</button></div>';
   h += '<section class="card"><div class="row" style="margin-bottom:12px"><div class="f"><span class="big-n">' + fmt1(cw) + '<small>kg</small></span></div><div class="muted small" style="text-align:right">obiettivo<br><b style="color:var(--tx)">' + fmt1(p.goal) + ' kg</b></div></div>' +
     '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><div class="muted small" style="margin-top:8px">' + (Math.abs(cw - p.goal) < 0.05 ? 'Obiettivo raggiunto!' : (cw < p.goal ? 'Mancano ' : 'Sei sopra di ') + fmt1(Math.abs(p.goal - cw)) + ' kg') + '</div>' + bmiBox(cw, p.height, p.goal) + weightMini() + '</section>';
-  if (S.settings.nutri !== false) h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.food + '</span><div class="f"><h4 style="margin-bottom:4px">Alimentazione</h4><p class="muted small">' + esc(tip) + '</p><p class="muted tiny" style="margin-top:6px">Indicazione generale, non personalizzata.' + (trend ? '' : ' I suggerimenti sull’andamento compaiono dopo almeno 3 settimane e 6 pesate.') + '</p></div></section>';
+  if (S.settings.nutri !== false) h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.food + '</span><div class="f"><h4 style="margin-bottom:4px">Alimentazione</h4><p class="muted small">' + esc(tip) + '</p><button class="btn ghost xs" style="margin-top:10px" data-a="tab" data-v="food">Apri la guida: calorie, proteine, cosa mangiare</button><p class="muted tiny" style="margin-top:6px">Indicazione generale, non personalizzata.' + (trend ? '' : ' I suggerimenti sull’andamento compaiono dopo almeno 3 settimane e 6 pesate.') + '</p></div></section>';
   return h;
 }
 
@@ -314,9 +314,10 @@ function vProfile() {
   const p = S.profile; const d = p;
   let h = '<div class="page-t row"><div class="avatar lg">' + esc(initial(d.name)) + '</div><div class="f"><h1 style="font-size:26px">' + esc(d.name || 'Profilo') + '</h1><p class="muted small">' + esc(LEVELS[d.level]) + ' · ' + esc(GOALS[d.obj].n) + ' · ' + d.wdays.length + ' giorni</p></div></div>';
   h += '<div class="sec-h"><h3>Dati personali</h3></div><section class="card">' + field('fName', 'Nome', 'text', d.name, 'Come ti chiami?') +
-    '<div class="grid2">' + field('fH', 'Altezza (cm)', 'number', d.height) + field('fG', 'Peso obiettivo (kg)', 'number', d.goal, '', '0.1') + '</div><p class="muted tiny">Il peso attuale si registra dal pulsante bilancia nella schermata Oggi.</p></section>';
+    '<div class="grid2">' + field('fH', 'Altezza (cm)', 'number', d.height) + field('fG', 'Peso obiettivo (kg)', 'number', d.goal, '', '0.1') + '</div><div class="grid2">' + field('fAge', 'Età', 'number', d.age || 22) + '<div class="field"><label>Sesso</label>' + seg('pSex', [['m', 'Uomo'], ['f', 'Donna']], d.sex || 'm', 'pPick') + '</div></div><p class="muted tiny">Età e sesso servono solo a stimare le calorie nella sezione Alimentazione. Il peso attuale si registra dal pulsante bilancia nella schermata Oggi.</p></section>';
   h += '<div class="sec-h"><h3>Allenamento</h3></div><section class="card">' +
     '<div class="field"><label>Obiettivo</label>' + seg('pObj', Object.keys(GOALS).map((k) => [k, GOALS[k].n.split(' ')[0] === 'Massa' ? 'Massa' : GOALS[k].n.split(' ')[0]]), d.obj, 'pPick') + '<p class="muted tiny" style="margin:8px 4px 0">' + esc(GOALS[d.obj].d) + '</p></div>' +
+    '<div class="field"><label>Priorità</label>' + seg('pFocus', [['upper', 'Parte alta'], ['bal', 'Equilibrata']], d.focus || 'upper', 'pPick') + '<p class="muted tiny" style="margin:8px 4px 0">' + ((d.focus || 'upper') === 'upper' ? 'Più serie per petto, schiena, spalle e braccia in ogni allenamento; gambe a mantenimento (le allena già il calcio).' : 'Stesso peso a parte alta e gambe.') + '</p></div>' +
     '<div class="field"><label>Livello</label>' + seg('pLevel', Object.keys(LEVELS).map((k) => [k, LEVELS[k]]), d.level, 'pPick') + '</div>' +
     '<div class="field"><label>Durata per allenamento</label>' + seg('pDur', [[30, '30 min'], [45, '45 min'], [60, '60 min']], d.dur, 'pPick') + '<div class="muted small" style="margin-top:6px">Consigliato per la massa: 60 minuti. Con meno tempo l\u2019app toglie serie ed esercizi per rispettare le pause giuste, e il volume settimanale scende sotto le 10 serie per muscolo.</div></div>' +
     toggle('pNeck', !!d.neck, 'Allena anche il collo', 'Circa 6 minuti alla fine di ogni allenamento', 'pNeck') + '</section>' +
@@ -581,4 +582,68 @@ function voicePicker() {
   if (!vs.length) return '<div class="voicebox"><p class="small muted">Il telefono non ha voci italiane installate. Su Android: Impostazioni → Accessibilità → Sintesi vocale → motore Google → Installa dati vocali → Italiano (scegli la voce di qualità alta).</p></div>';
   return '<div class="voicebox"><label class="small muted" for="voiceSel">Voce</label><div class="row"><select id="voiceSel" class="f">' + vs.map((v) => '<option value="' + esc(v.name) + '"' + (cur && v.name === cur.name ? ' selected' : '') + '>' + esc(v.name.replace(/Microsoft |Google /, '').replace(/\s*\(.*\)/, '')) + (v.localService ? '' : ' · online') + '</option>').join('') + '</select><button class="btn ghost xs" data-a="voiceTest">' + ICON.play + 'Prova</button></div>' +
     '<p class="muted tiny" style="margin-top:6px">Se nessuna voce ti piace, installa una voce italiana di qualità alta dalle impostazioni di sintesi vocale del telefono.</p></div>';
+}
+
+/* ---------- Alimentazione ----------
+   Fonti: Iraki et al. 2019 (Sports): surplus 10–20%, +0,25–0,5% del peso a settimana, proteine 1,6–2,2 g/kg
+   in 3–6 pasti da 0,40–0,55 g/kg; Morton et al. 2018 (BJSM): beneficio delle proteine fino a ~1,6 g/kg (limite alto ~2,2);
+   ISSN 2017 (Jäger et al.; Kreider et al.): 20–40 g di proteine a pasto, creatina 3–5 g al giorno sicura ed efficace;
+   Parr et al. 2014 (PLoS ONE): l'alcol dopo l'allenamento riduce la sintesi proteica anche assunto con proteine. */
+const FOOD_MORE = [
+  ['Proteine a ogni pasto', 'Uova, petto di pollo o tacchino, carne magra, pesce, tonno, latte, yogurt greco, skyr, ricotta, fiocchi di latte, parmigiano, legumi. Circa 25–30 g a pasto.'],
+  ['Carboidrati per allenarti e per le calorie', 'Pasta, riso, pane, patate, fiocchi d’avena, cereali, frutta. Sono la fonte di calorie più facile da aumentare.'],
+  ['Grassi buoni, piccoli ma ricchi di calorie', 'Olio extravergine d’oliva, frutta secca, burro d’arachidi, semi, avocado, cioccolato fondente. Pochi grammi = molte calorie.'],
+  ['Frutta e verdura ogni giorno', 'Servono per salute, digestione e recupero. Se ti riempiono troppo, preferisci frutta e verdura cotta o nei frullati.']
+];
+const FOOD_LESS = [
+  ['Alcol', 'Riduce la costruzione di muscolo dopo l’allenamento anche se mangi proteine. Soprattutto la sera dopo partita o allenamento.'],
+  ['Bibite zuccherate e snack come base della dieta', 'Danno calorie senza proteine né nutrienti. Vanno bene ogni tanto, non come modo principale per ingrassare.'],
+  ['Saltare i pasti', 'Per chi fa fatica a prendere peso è il primo motivo per cui la bilancia non sale.'],
+  ['Troppe verdure e fibre prima dei pasti principali', 'Saziano molto e ti fanno mangiare meno del necessario: mettile nel piatto, non come “antipasto” abbondante.']
+];
+const FOOD_TIPS = [
+  'Mangia 4–5 volte al giorno: 3 pasti e 1–2 spuntini.',
+  'Usa le calorie liquide: un frullato con latte, avena, banana e burro d’arachidi fa 700–800 kcal e si beve in 2 minuti.',
+  'Aggiungi un cucchiaio d’olio a pasta, riso e verdure: +90 kcal senza accorgertene.',
+  'Prima di dormire: yogurt greco, skyr o ricotta (proteine a lento rilascio).',
+  'Dopo l’allenamento fai un pasto con proteine entro un paio d’ore; non serve correre.',
+  'Pesati 2 volte a settimana alla stessa ora (mattina, a digiuno): conta la media, non il singolo giorno.'
+];
+const FOOD_DAY = [
+  ['Colazione', '80 g fiocchi d’avena, 300 ml latte, 1 banana, 20 g burro d’arachidi', 720, 26],
+  ['Pranzo', '120 g pasta, 1 scatoletta di tonno, 1 cucchiaio d’olio, verdure', 700, 37],
+  ['Spuntino', '170 g yogurt greco, 30 g frutta secca, 1 frutto', 420, 21],
+  ['Cena', '150 g petto di pollo, 300 g patate, 60 g pane, 1 cucchiaio d’olio, verdure', 740, 48],
+  ['Prima di dormire', '150 g ricotta o skyr con un cucchiaino di miele', 250, 14]
+];
+function vFood() {
+  const p = S.profile; const kg = curWeight(); const n = nutriPlan(p, kg); const trend = weightTrend(S);
+  const int = (x) => Math.round(x).toLocaleString('it-IT');
+  const adj = trend === 'flat' ? ['warn', 'Il peso è fermo', 'Aggiungi 150–200 kcal al giorno (per esempio un frullato piccolo o uno spuntino in più) e ricontrolla tra due settimane.']
+    : trend === 'fast' ? ['warn', 'Stai salendo troppo in fretta', 'Togli circa 150 kcal al giorno: il peso in più oltre lo 0,5% a settimana è soprattutto grasso.']
+    : trend === 'ok' ? ['ok', 'Ritmo giusto', 'Stai salendo tra lo 0,25% e lo 0,5% del peso a settimana: continua così.']
+    : ['info', 'Come capire se mangi abbastanza', 'Dopo 3 settimane e almeno 6 pesate l’app ti dice se aumentare o diminuire le calorie.'];
+  let h = '<div class="page-t"><h1>Alimentazione</h1><p class="muted small">Per mettere massa servono tre cose: allenamento, abbastanza proteine e un piccolo surplus di calorie. Senza surplus il peso non sale.</p></div>';
+  h += '<section class="card"><h3 style="margin-bottom:12px">I tuoi numeri</h3>' +
+    '<div class="row" style="align-items:flex-end;margin-bottom:6px"><div class="f"><span class="big-n">' + int(n.kcal) + '<small>kcal al giorno</small></span></div></div>' +
+    '<p class="muted small" style="margin-bottom:14px">Intervallo ' + int(n.kLo) + '–' + int(n.kHi) + ' kcal: circa il 10–15% in più di quanto consumi (stima ' + int(n.tdee) + ' kcal con ' + p.wdays.length + ' allenamenti a settimana' + (n.pal > 1.4 + 0.05 * p.wdays.length ? ' e il calcio' : '') + ').</p>' +
+    '<div class="lrow"><div class="f"><div class="t">Proteine</div><div class="muted small">' + n.pLo + '–' + n.pHi + ' g al giorno (1,6–2,2 g per kg)</div></div><b>' + n.pMid + ' g</b></div>' +
+    '<div class="lrow"><div class="f"><div class="t">Proteine a pasto</div><div class="muted small">Su 4 pasti, distribuite nella giornata</div></div><b>' + n.meal + '–' + (n.meal + 5) + ' g</b></div>' +
+    '<div class="lrow"><div class="f"><div class="t">Grassi</div><div class="muted small">Circa il 25% delle calorie (tra 20 e 35%)</div></div><b>' + n.fat + ' g</b></div>' +
+    '<div class="lrow"><div class="f"><div class="t">Carboidrati</div><div class="muted small">Il resto delle calorie</div></div><b>' + n.carb + ' g</b></div>' +
+    '<div class="lrow"><div class="f"><div class="t">Aumento di peso</div><div class="muted small">Obiettivo a settimana (0,25–0,5% del peso)</div></div><b>+' + fmt1(n.wLo) + '–' + fmt1(n.wHi) + ' kg</b></div>' +
+    '<p class="muted tiny" style="margin-top:10px">Calcolo con il tuo peso attuale (' + fmt1(kg) + ' kg), altezza ed età (dal profilo). Le formule sbagliano anche di 200–300 kcal: la bilancia ti dice se correggere.</p></section>';
+  h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--' + (adj[0] === 'ok' ? 'acd' : 'ord') + ');color:var(--' + (adj[0] === 'ok' ? 'ac' : 'or') + ')">' + ICON.chart + '</span><div class="f"><h4 style="margin-bottom:4px">' + esc(adj[1]) + '</h4><p class="muted small">' + esc(adj[2]) + '</p></div></section>';
+  const list = (t, arr, ic) => '<div class="sec-h"><h3>' + t + '</h3></div><section class="card">' + arr.map((x) => '<div class="lrow" style="align-items:flex-start"><span class="letter">' + ic + '</span><div class="f"><div class="t">' + esc(x[0]) + '</div><div class="muted small">' + esc(x[1]) + '</div></div></div>').join('') + '</section>';
+  h += list('Da mangiare di più', FOOD_MORE, ICON.check) + list('Da limitare', FOOD_LESS, ICON.x);
+  h += '<div class="sec-h"><h3>Se fai fatica a ingrassare</h3></div><section class="card">' + FOOD_TIPS.map((x) => '<div class="lrow"><span class="letter">' + ICON.up + '</span><div class="f small">' + esc(x) + '</div></div>').join('') + '</section>';
+  const tk = FOOD_DAY.reduce((t, x) => t + x[2], 0), tp = FOOD_DAY.reduce((t, x) => t + x[3], 0);
+  h += '<div class="sec-h"><h3>Esempio di giornata</h3></div><section class="card"><p class="muted small" style="margin-bottom:10px">Circa ' + int(tk) + ' kcal e ' + tp + ' g di proteine. Valori indicativi: cambia gli alimenti come preferisci mantenendo le quantità simili.</p>' +
+    FOOD_DAY.map((x) => '<div class="lrow" style="align-items:flex-start"><div class="f"><div class="t">' + esc(x[0]) + '</div><div class="muted small">' + esc(x[1]) + '</div></div><div class="muted small" style="text-align:right;white-space:nowrap">' + x[2] + ' kcal<br>' + x[3] + ' g prot.</div></div>').join('') + '</section>';
+  h += '<div class="sec-h"><h3>Integratori</h3></div><section class="card">' +
+    '<div class="lrow" style="align-items:flex-start"><span class="letter">' + ICON.check + '</span><div class="f"><div class="t">Creatina monoidrato · 3–5 g al giorno</div><div class="muted small">È l’integratore più studiato: aiuta forza e massa ed è sicura alle dosi consigliate. Tutti i giorni, a qualsiasi ora, anche nei giorni di riposo. Nelle prime settimane il peso sale di 1–2 kg d’acqua nei muscoli: è normale.</div></div></div>' +
+    '<div class="lrow" style="align-items:flex-start"><span class="letter">' + ICON.check + '</span><div class="f"><div class="t">Proteine in polvere · solo se servono</div><div class="muted small">Non fanno niente di speciale: sono comode se con il cibo non arrivi alle proteine del giorno.</div></div></div>' +
+    '<div class="lrow" style="align-items:flex-start"><span class="letter">' + ICON.x + '</span><div class="f"><div class="t">Il resto (BCAA, “mass gainer”, brucia-grassi…)</div><div class="muted small">Non servono se mangi abbastanza calorie e proteine.</div></div></div></section>';
+  h += '<section class="card"><h4 style="margin-bottom:6px">Fonti</h4><p class="muted tiny">Iraki et al., Sports 2019 (raccomandazioni nutrizionali per aumentare la massa) · Morton et al., British Journal of Sports Medicine 2018 (meta-analisi su proteine e allenamento) · International Society of Sports Nutrition: position stand su proteine (2017) e creatina (2017) · Parr et al., PLoS ONE 2014 (alcol e sintesi proteica) · Mifflin-St Jeor (1990) per il metabolismo a riposo.</p><p class="muted tiny" style="margin-top:8px">Indicazioni generali per adulti sani, non un piano medico. Se hai patologie, allergie o dubbi rivolgiti a un medico o a un nutrizionista.</p></section>';
+  return h;
 }

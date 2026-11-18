@@ -119,7 +119,8 @@ function fitDuration(slots, dur, locked) {
   const free = (s) => !locked[s.slot];
   const drop = (pri) => { for (let i = slots.length - 1; i >= 0 && tot() > target + 120; i--) if (slots[i].pri === pri && free(slots[i]) && slots.length > 4) slots.splice(i, 1); };
   drop(3);
-  for (let i = slots.length - 1; i >= 0 && tot() > target + 120; i--) if (slots[i].sets >= 4 && free(slots[i])) slots[i].sets = 3;
+  // si tolgono serie prima agli esercizi meno importanti, poi agli altri
+  slots.map((s, i) => i).sort((a, b) => (slots[b].pri - slots[a].pri) || (b - a)).forEach((i) => { if (tot() > target + 120 && slots[i].sets >= 4 && free(slots[i])) slots[i].sets = 3; });
   drop(2);
   if (tot() < target - 8 * 60) {
     for (let i = 0; i < slots.length; i++) {
@@ -137,7 +138,21 @@ function resolveWorkout(wid, p, st) {
   const W = WORKOUTS[wid];
   const locked = {}; Object.keys(st.plan.over).forEach((k) => { if (st.plan.over[k].sets) locked[k] = 1; });
   const used = {};
-  let slots = W.slots.map((s) => { const r = resolveSlot(s, p, st, wid, used); if (r) used[r.l] = 1; return r; }).filter(Boolean);
+  let tpl = W.slots;
+  if ((p.focus || 'upper') === 'upper') {
+    tpl = W.slots.map((s) => {
+      const leg = LEG_LADDERS.indexOf(s.l) >= 0;
+      if (leg) return Object.assign({}, s, { sets: Math.max(2, s.sets - 2), pri: Math.max(s.pri, 2) }); // mantenimento
+      if (s.pri === 1) return Object.assign({}, s, { sets: Math.min(5, s.sets + 1) });
+      return s;
+    });
+    const add = FOCUS_ADD[wid] || [];
+    if (add.length) { // prima di core e polpacci, che restano alla fine
+      let at = tpl.findIndex((s) => ['core', 'calf', 'calf_floor', 'hang_core'].indexOf(s.l) >= 0); if (at < 0) at = tpl.length;
+      tpl = tpl.slice(0, at).concat(add, tpl.slice(at));
+    }
+  }
+  let slots = tpl.map((s) => { const r = resolveSlot(s, p, st, wid, used); if (r) used[r.l] = 1; return r; }).filter(Boolean);
   slots = fitDuration(slots, p.dur, locked);
   if (p.neck) NECK_SLOTS.forEach((ns) => { const r = resolveSlot(ns, p, st, wid, used); if (r) { r.neck = true; used[r.l] = 1; slots.push(r); } });
   slots.forEach((s) => { s.baseSets = s.sets; });
@@ -264,10 +279,29 @@ function weightTrend(st) {
   const last = dayN(w[w.length - 1].d); if (last - dayN(w[0].d) < 21) return null;
   const avg = (a, b) => { const xs = w.filter((e) => { const d = last - dayN(e.d); return d >= a && d < b; }).map((e) => e.kg); return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null; };
   const r = avg(0, 7), q = avg(14, 21); if (r == null || q == null) return null;
-  const perWeek = (r - q) / 2; return perWeek < 0.1 ? 'flat' : perWeek > 0.5 ? 'fast' : 'ok';
+  // Obiettivo: +0,25–0,5% del peso a settimana (Iraki et al. 2019), con un po' di tolleranza.
+  const perWeek = (r - q) / 2; return perWeek < r * 0.002 ? 'flat' : perWeek > r * 0.006 ? 'fast' : 'ok';
 }
 
 /* IMC = kg / m². Fasce per adulti: < 18,5 sottopeso, 18,5–24,9 normopeso, 25–29,9 sovrappeso, ≥ 30 obesità. */
+/* ---------- Alimentazione ----------
+   Metabolismo a riposo: Mifflin-St Jeor. Moltiplicato per il livello di attività (allenamenti + calcio).
+   Surplus 10–15% e aumento di peso 0,25–0,5% a settimana (Iraki et al. 2019).
+   Proteine 1,6–2,2 g/kg al giorno (Morton et al. 2018), circa 0,4 g/kg a pasto su 4 pasti.
+   Grassi 20–35% delle calorie, il resto carboidrati. È una stima: la verità la dice la bilancia. */
+function nutriPlan(p, kg) {
+  const age = p.age || 22, male = (p.sex || 'm') === 'm';
+  const bmr = 10 * kg + 6.25 * p.height - 5 * age + (male ? 5 : -161);
+  const football = (p.match && p.match.length) || (p.matchDates && p.matchDates.length) ? 0.05 : 0;
+  const pal = 1.4 + 0.05 * p.wdays.length + football;
+  const tdee = bmr * pal; const r50 = (x) => Math.round(x / 50) * 50;
+  const kcal = r50(tdee * 1.12), kLo = r50(tdee * 1.1), kHi = r50(tdee * 1.15);
+  const pLo = Math.round(kg * 1.6), pHi = Math.round(kg * 2.2), pMid = Math.round(kg * 1.8);
+  const fat = Math.round(kcal * 0.25 / 9);
+  const carb = Math.round((kcal - pMid * 4 - fat * 9) / 4);
+  return { bmr: Math.round(bmr), pal: pal, tdee: r50(tdee), kcal: kcal, kLo: kLo, kHi: kHi, pLo: pLo, pHi: pHi, pMid: pMid,
+    meal: Math.round(kg * 0.4), fat: fat, carb: carb, wLo: kg * 0.0025, wHi: kg * 0.005 };
+}
 function bmi(kg, cm) { return kg > 0 && cm > 0 ? kg / Math.pow(cm / 100, 2) : null; }
 function bmiCat(v) {
   if (v < 18.5) return { n: 'Sottopeso', cls: 'or' };

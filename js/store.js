@@ -5,7 +5,7 @@
 
 const KEY = 'leva.v2';
 const KEY_V1 = 'leva.v1';
-const APP_VERSION = '3.3';
+const APP_VERSION = '3.4';
 
 function fresh() {
   return { v: 2, profile: null, prog: {}, sessions: [], weights: [], measures: [], active: null,
@@ -17,7 +17,7 @@ function defaultEquip() { return { band: false, backpack: false, chair: false, t
 
 function defaultProfile() {
   return { name: '', height: 175, weight: 65.5, goal: 70, level: 'int', obj: 'hyp', wdays: [0, 2, 4], dur: 45,
-    equip: defaultEquip(), avoid: [], excl: [], match: [], matchDates: [] };
+    equip: defaultEquip(), avoid: [], excl: [], match: [], matchDates: [], focus: 'upper', age: 22, sex: 'm' };
 }
 
 /* Converte un salvataggio v1 nel formato v2, senza perdere niente. */

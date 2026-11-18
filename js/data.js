@@ -305,6 +305,17 @@ const WORKOUTS = {
 };
 
 /* Quale insieme di schede usare in base ai giorni a settimana. */
+/* Priorità alla parte alta: gambe a mantenimento (le allena già il calcio), più serie per
+   petto, schiena, spalle e braccia, distribuite su tutti gli allenamenti della settimana
+   (oltre ~11 serie per muscolo nella stessa seduta il guadagno in più è minimo: meglio spalmarle). */
+const LEG_LADDERS = ['squat', 'squat_tempo', 'lunge', 'hinge', 'calf', 'calf_floor'];
+const FOCUS_ADD = {
+  B: [{ id: 'B8u', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [10, 15], rest: 60, pri: 2 }],
+  C: [{ id: 'C9u', l: 'dip', alt: ['tri_bw', 'triceps'], sets: 3, r: [8, 15], rest: 90, pri: 2 }],
+  F2: [{ id: 'F2u', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [10, 15], rest: 60, pri: 2 }],
+  L1: [{ id: 'L1u', l: 'push_h', start: 'ph_classic', sets: 3, r: [8, 15], rest: 90, pri: 2 }],
+  L2: [{ id: 'L2u', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 3, r: [10, 15], rest: 90, pri: 2 }]
+};
 const SPLITS = {
   2: { name: 'Full body ×2', order: ['F1', 'F2'] },
   3: { name: 'Full body A/B/C', order: ['A', 'B', 'C'] },
