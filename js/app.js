@@ -70,6 +70,7 @@ function itVoices() {
 }
 function pickVoice() { const vs = itVoices(); return vs.find((v) => v.name === S.settings.voiceName) || vs[0] || null; }
 if (window.speechSynthesis) try { speechSynthesis.onvoiceschanged = () => { if (route === 'profile') render(); }; speechSynthesis.getVoices(); } catch (e) {}
+function speaking() { try { return !!(window.speechSynthesis && S.settings.voice !== false && (speechSynthesis.speaking || speechSynthesis.pending)); } catch (e) { return false; } }
 /* Parla. queue = true mette la frase in coda invece di interrompere quella in corso
    (così le parole non vengono tagliate a metà). */
 function say(text, queue, force) {
@@ -121,11 +122,12 @@ function openOv(o) {
       '<button class="btn primary" data-a="holdStop">' + ICON.stop + 'Fermati prima e registra</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'tempo') {
     const ex = S.active.ex[o.ei];
-    h = '<div class="eyebrow">Serie ' + (o.si + 1) + ' di ' + ex.sets.length + ' · ritmo guidato</div><div class="nexttx" style="font-size:18px;margin-bottom:6px">' + esc(EX[ex.x].n) + '</div>' +
-      (o.key ? '<div class="anim sm" style="width:100%;margin:6px 0 10px"><svg id="tAnim" viewBox="0 -12 160 124" role="img" aria-label="Animazione sincronizzata">' + frameInner(o.key, 0, o.hl) + '</svg></div>' : '') +
-      '<div class="tphase" id="tPh">3</div><div class="tbar"><i id="tBar" style="width:0"></i></div>' +
-      '<div class="trow"><div><div class="tcount" id="tCnt">0<small>/' + o.target + '</small></div><div class="muted small" id="tSide">' + (o.side ? 'ripetizioni · lato 1 di 2' : 'ripetizioni fatte') + '</div></div>' +
-      '<div><div class="tcount sm" id="tTime">0:00</div><div class="muted small">tempo della serie</div></div></div>' +
+    h = '<div class="eyebrow">Ritmo guidato · serie ' + (o.si + 1) + ' di ' + ex.sets.length + '</div><div class="nexttx" style="font-size:17px;margin:2px 0 6px">' + esc(EX[ex.x].n) + '</div>' +
+      (o.key ? '<div class="anim sm" style="width:100%;margin:4px 0 8px"><svg id="tAnim" viewBox="0 -12 160 124" role="img" aria-label="Animazione sincronizzata">' + frameInner(o.key, 0, o.hl) + '</svg></div>' : '') +
+      '<div class="trep" id="tRep">Mettiti in posizione</div>' +
+      '<div class="tphase h" id="tPh">…</div>' +
+      '<div class="tseq">' + o.ph.map((p, k) => '<span id="tq' + k + '"><b>' + esc(p.v.toUpperCase()) + '</b><small>' + p.s + ' s</small><i></i></span>').join('') + '</div>' +
+      '<div class="muted small" id="tSide" style="margin:8px 0 18px">' + (o.side ? 'Lato 1 di 2 · ' : '') + o.target + ' ripetizioni · <span id="tTime">0:00</span></div>' +
       '<button class="btn primary" data-a="tempoStop">' + ICON.check + 'Ho finito la serie</button><div class="sp10"></div><button class="btn ghost" data-a="ovClose">Annulla</button>';
   } else if (o.mode === 'pause') {
     h = '<div class="letter" style="width:76px;height:76px;border-radius:50%;margin-bottom:18px">' + ICON.pause + '</div><h2>In pausa</h2><p class="muted center" style="margin:8px 0 26px">Il tempo dell’allenamento è fermo. I dati sono salvati: puoi anche chiudere l’app.</p><div class="clock" id="ovT" style="font-size:40px;margin-bottom:26px">0:00</div><button class="btn primary" data-a="unpause">' + ICON.play + 'Riprendi</button>';
@@ -198,9 +200,11 @@ function rtTick() {
   const r = a.rt; if (!r.end) return;
   const left = rtLeft(); const t = document.getElementById('rtT'); const ring = document.getElementById('rtRing'); const lab = document.getElementById('rtL');
   const pr = rtPrep();
-  if (pr > 0) { if (t) t.textContent = Math.ceil(pr); if (lab) lab.textContent = 'in posizione'; if (ring) ring.setAttribute('stroke-dashoffset', '0'); return; }
+  // Se la voce sta ancora parlando, il conto alla rovescia aspetta: la frase non viene interrotta.
+  if (pr > 0 && pr < 1.2 && speaking()) { r.prepEnd += 250; r.end += 250; }
+  if (pr > 0) { if (t) t.textContent = Math.ceil(rtPrep()); if (lab) lab.textContent = 'in posizione'; if (ring) ring.setAttribute('stroke-dashoffset', '0'); return; }
   if (lab && lab.textContent !== 'secondi') lab.textContent = 'secondi';
-  if (r.prepEnd && r.said == null) { r.said = 'go'; say('Via'); }
+  if (r.prepEnd && r.said == null) { r.said = 'go'; say('Via', true); }
   if (t) t.textContent = Math.ceil(left); if (ring) ring.setAttribute('stroke-dashoffset', (282.74 * (1 - left / r.total)).toFixed(1));
   const c = Math.ceil(left); if (c > 0 && c <= 3 && r.said !== c) { r.said = c; if (!say(['', 'uno', 'due', 'tre'][c])) beep(1); }
   if (left <= 0) { buzz([150]); if (r.i + 1 >= r.steps.length) rtDone(); else rtStep(r.i + 1); }
@@ -228,7 +232,9 @@ function holdState(o) {
   return { end: true };
 }
 function holdTick(t, ring) {
-  const o = ov; const st = holdState(o); const L = document.getElementById('hL'), sub = document.getElementById('hSub'), sd = document.getElementById('hSide');
+  const o = ov;
+  if (Date.now() < o.start && o.start - Date.now() < 1200 && speaking()) o.start += 250; // aspetta la fine della frase
+  const st = holdState(o); const L = document.getElementById('hL'), sub = document.getElementById('hSub'), sd = document.getElementById('hSide');
   if (st.end) { holdFinish(o, o.target); return; }
   if (st.pre != null || st.change != null) {
     const c = Math.ceil(st.pre != null ? st.pre : st.change);
@@ -242,7 +248,7 @@ function holdTick(t, ring) {
   if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - left / o.target)).toFixed(1));
   const key = st.seg + ':' + c;
   if (o.said !== key) {
-    if (o.said == null || /^(chg|pre)/.test(String(o.said)) || o.said.split(':')[0] !== String(st.seg)) say('Via');
+    if (o.said == null || /^(chg|pre)/.test(String(o.said)) || o.said.split(':')[0] !== String(st.seg)) say('Via', true);
     else if (c <= 3 && c > 0) say(['', 'uno', 'due', 'tre'][c]);
     o.said = key;
   }
@@ -253,21 +259,25 @@ function holdFinish(o, v) {
 }
 
 /* ---------- Ritmo guidato ----------
-   3 secondi di preparazione, poi ogni ripetizione scandita fase per fase.
-   Per gli esercizi per lato: prima un lato, poi "cambia lato", poi l'altro. */
+   1. la voce dice quante ripetizioni fare e "mettiti in posizione" (si aspetta che finisca);
+   2. conto alla rovescia 3, 2, 1;
+   3. ogni fase ha una parola breve ("giù", "su", "tira", "tieni") detta all'inizio della fase,
+      sempre interrompendo la precedente così la voce resta a tempo con l'omino;
+   4. all'inizio di ogni ripetizione la voce dice anche quante ne hai fatte ("3, giù").
+   Per gli esercizi per lato: dopo il primo lato "cambia lato" e 4 secondi di pausa. */
 function tempoState() {
-  const o = ov; const rep = o.ph.reduce((t, p) => t + p.s, 0);
-  const el = (Date.now() - o.start) / 1000 - 3; const per = o.target; const tot = per * (o.side ? 2 : 1);
-  if (el < 0) return { pre: Math.ceil(-el) };
-  const gap = o.side ? 3 : 0; // pausa per cambiare lato
-  let t = el, sideIdx = 0;
-  if (o.side && t >= per * rep) { t -= per * rep; if (t < gap) return { change: true, done: per, sideIdx: 1 }; t -= gap; sideIdx = 1; }
-  const r = Math.floor(t / rep); if (sideIdx * per + r >= tot || r >= per) return { end: true };
-  let w = t - r * rep, i = 0; while (w >= o.ph[i].s) { w -= o.ph[i].s; i++; }
-  return { rep: r, ph: i, frac: w / o.ph[i].s, sideIdx: sideIdx };
+  const o = ov; const now = Date.now();
+  if (!o.start) return { intro: true };
+  const rep = o.ph.reduce((t, p) => t + p.s, 0); const per = o.target;
+  let t = (now - o.start) / 1000; if (t < 0) return { pre: -t };
+  let sideIdx = 0;
+  if (o.side && t >= per * rep) { t -= per * rep; if (t < 4) return { change: 4 - t }; t -= 4; sideIdx = 1; }
+  const r = Math.floor(t / rep); if (r >= per) return { end: true };
+  let w = t - r * rep, i = 0; while (i < o.ph.length - 1 && w >= o.ph[i].s) { w -= o.ph[i].s; i++; }
+  return { rep: r, ph: i, frac: Math.min(1, w / o.ph[i].s), sideIdx: sideIdx, t: t };
 }
 function tempoPose(st) {
-  const o = ov; if (!o.key || st.pre || st.change || st.end) return 0;
+  const o = ov; if (!o.key || st.pre != null || st.change != null || st.end || st.intro) return o.inv ? 1 : 0;
   const p = o.ph[st.ph]; const f = (1 - Math.cos(Math.PI * st.frac)) / 2; const push = o.w === 'push';
   let k;
   if (p.k === 'e') k = push ? f : 1 - f;
@@ -276,30 +286,39 @@ function tempoPose(st) {
   return o.inv ? 1 - k : k;
 }
 function tempoTick() {
-  const o = ov; const st = tempoState(); const P = (id) => document.getElementById(id);
+  const o = ov; const P = (id) => document.getElementById(id);
+  if (!o.start && Date.now() - o.introAt > 1200 && !speaking()) o.start = Date.now() + 3000; // dopo la frase iniziale: 3, 2, 1
+  if (o.start && Date.now() < o.start && o.start - Date.now() < 900 && speaking()) o.start += 50;
+  const st = tempoState();
   const an = P('tAnim'); if (an) an.innerHTML = frameInner(o.key, tempoPose(st), o.hl);
-  const el = Math.max(0, (Date.now() - o.start) / 1000 - 3); const tt = P('tTime'); if (tt) tt.textContent = mmss(el);
-  if (st.pre) { if (o.last !== 'pre' + st.pre) { o.last = 'pre' + st.pre; if (!say(st.pre === 3 ? 'Pronto. 3' : String(st.pre))) tone(660); } P('tPh').textContent = st.pre; P('tPh').className = 'tphase h'; return; }
-  if (st.end) { say(String(o.target)); tempoFinish(o.target); return; }
-  if (st.change) { if (o.last !== 'chg') { o.last = 'chg'; if (!say(o.target + '. Cambia lato')) tone(440, 0.3); } P('tPh').textContent = 'Cambia lato'; P('tPh').className = 'tphase h'; P('tBar').style.width = '0'; P('tCnt').innerHTML = '0<small>/' + o.target + '</small>'; P('tSide').textContent = 'ripetizioni · lato 2 di 2'; return; }
+  const tt = P('tTime'); if (tt) tt.textContent = mmss(o.start ? Math.max(0, (Date.now() - o.start) / 1000) : 0);
+  const seq = (on, frac) => o.ph.forEach((p, k) => { const el = P('tq' + k); if (!el) return; el.className = k === on ? 'on' : ''; const bar = el.querySelector('i'); if (bar) bar.style.width = (k === on ? frac * 100 : 0).toFixed(0) + '%'; });
+  if (st.intro) { P('tPh').textContent = '…'; seq(-1, 0); return; }
+  if (st.pre != null) {
+    const c = Math.ceil(st.pre); if (o.last !== 'pre' + c) { o.last = 'pre' + c; if (!say(String(c))) tone(660); }
+    P('tPh').textContent = c; P('tPh').className = 'tphase h'; P('tRep').textContent = 'Si parte tra…'; seq(-1, 0); return;
+  }
+  if (st.end) { tempoFinish(o.target); return; }
+  if (st.change != null) {
+    if (o.last !== 'chg') { o.last = 'chg'; if (!say(o.target + '. Cambia lato')) tone(440, 0.3); buzz([150]); }
+    P('tPh').textContent = Math.ceil(st.change); P('tPh').className = 'tphase h'; P('tRep').textContent = 'Cambia lato'; seq(-1, 0);
+    P('tSide').innerHTML = 'Lato 2 di 2 · ' + o.target + ' ripetizioni · <span id="tTime"></span>'; return;
+  }
   const p = o.ph[st.ph]; const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
   if (o.last !== key) {
     o.last = key;
-    // La voce dice sempre cosa fare; a inizio ripetizione dice anche quante ne hai fatte.
-    const word = p.n.toLowerCase();
-    let spoken;
-    if (st.ph === 0 && st.rep > 0) { spoken = say(String(st.rep)); say(word, true); } // conta la ripetizione appena fatta, poi la fase
-    else spoken = say(word, speechSynthesis && speechSynthesis.speaking);
-    if (!spoken) tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.08);
-    buzz(25);
+    const txt = st.ph === 0 && st.rep > 0 ? st.rep + ', ' + p.v : p.v; // "3, giù"
+    if (!say(txt)) tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.09);
+    else tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.05); // piccolo segnale preciso in più
+    buzz(30);
   }
-  P('tPh').textContent = p.n; P('tPh').className = 'tphase ' + p.k;
-  P('tBar').style.width = (st.frac * 100).toFixed(1) + '%';
-  P('tCnt').innerHTML = st.rep + '<small>/' + o.target + '</small>';
-  if (o.side) P('tSide').textContent = 'ripetizioni · lato ' + (st.sideIdx + 1) + ' di 2';
+  P('tPh').textContent = p.v.toUpperCase(); P('tPh').className = 'tphase ' + p.k;
+  P('tRep').innerHTML = 'Ripetizione <b>' + (st.rep + 1) + '</b> di ' + o.target + (o.side ? ' · lato ' + (st.sideIdx + 1) : '');
+  seq(st.ph, st.frac);
 }
 function tempoFinish(v) {
   const o = ov; if (!o) return; closeOv();
+  say(String(v));
   const s = S.active.ex[o.ei].sets[o.si]; s.v = Math.max(0, v); s.done = true; save();
   afterSetDone(o.ei, o.si, true);
 }
@@ -455,12 +474,13 @@ const A = {
   tempoStart: (t) => {
     ensureAudio(); const e = curEx(); const i = +t.dataset.s; const s = e.sets[i];
     const tp = tempoOf(e.x); const key = EX_ANIM[e.x]; const d = key ? animDef(key) : null;
-    openOv({ mode: 'tempo', start: Date.now(), ei: S.active.idx, si: i, target: s.v, side: !!e.side, ph: tempoPhases(tp), w: tp.w, key: key, inv: !!(d && d.inv), hl: EX[e.x].m });
+    openOv({ mode: 'tempo', start: null, introAt: Date.now(), ei: S.active.idx, si: i, target: s.v, side: !!e.side, ph: tempoPhases(tp), w: tp.w, key: key, inv: !!(d && d.inv), hl: EX[e.x].m });
+    say(s.v + ' ripetizioni' + (e.side ? ' per lato' : '') + '. Mettiti in posizione.', false, false);
   },
   tempoStop: () => {
     if (!ov || ov.mode !== 'tempo') return; const st = tempoState();
-    const done = st.pre ? 0 : st.end ? ov.target : st.change ? ov.target : (ov.side && st.sideIdx === 0 ? st.rep : st.rep);
-    if (st.pre) { closeOv(); render(); return; }
+    if (st.intro || st.pre != null) { closeOv(); render(); return; }
+    const done = st.end || st.change != null ? ov.target : st.rep; // ripetizioni completate
     tempoFinish(done);
   },
   pNeck: () => { S.profile.neck = !S.profile.neck; commitProfile(true); },

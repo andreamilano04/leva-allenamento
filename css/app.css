@@ -393,6 +393,12 @@ body.full #tabbar{display:none}
 .srow b{font-weight:600;color:var(--tx2)}.srow small{font-weight:500;color:var(--mu)}
 .srow.ok b{color:var(--ac)}.srow.cur span,.srow.cur b{color:var(--tx)}
 
+.trep{font-size:18px;color:var(--tx2);margin:2px 0 2px}.trep b{color:var(--tx);font-size:24px}
+.tseq{display:flex;gap:6px;width:100%;justify-content:center;margin-top:2px}
+.tseq span{position:relative;overflow:hidden;flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;padding:8px 4px 9px;border-radius:14px;background:var(--s2);border:1px solid var(--line);color:var(--mu)}
+.tseq span b{font-size:15px;letter-spacing:.04em}.tseq span small{font-size:11px}
+.tseq span i{position:absolute;left:0;bottom:0;height:4px;background:var(--ac);width:0}
+.tseq span.on{background:var(--acd);border-color:var(--acd2);color:var(--tx)}
 .trow{display:flex;justify-content:space-around;width:100%;text-align:center;margin:4px 0 22px}
 .tcount.sm{font-size:34px;line-height:64px}
 #ov .anim.sm svg{max-height:150px}

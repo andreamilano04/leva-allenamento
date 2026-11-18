@@ -378,9 +378,11 @@ function tempoOf(x) {
 /* Fasi di una ripetizione nell'ordine in cui si fanno. */
 function tempoPhases(tp) {
   const W = { push: ['Scendi', 'Spingi'], pull: ['Torna', 'Tira'], lift: ['Scendi', 'Sali'] }[tp.w];
-  const ecc = { n: W[0], s: tp.e, k: 'e' }, con = { n: W[1], s: tp.c, k: 'c' };
-  const ph = tp.w === 'push' ? [ecc, tp.b ? { n: 'Tieni', s: tp.b, k: 'h' } : null, con, tp.t ? { n: 'Tieni', s: tp.t, k: 'h' } : null]
-    : [con, tp.t ? { n: 'Tieni', s: tp.t, k: 'h' } : null, ecc, tp.b ? { n: 'Tieni', s: tp.b, k: 'h' } : null];
+  // v = parola breve detta dalla voce (deve stare dentro la fase, anche di 1 secondo)
+  const V = { push: ['giù', 'su'], pull: ['rilascia', 'tira'], lift: ['giù', 'su'] }[tp.w];
+  const ecc = { n: W[0], v: V[0], s: tp.e, k: 'e' }, con = { n: W[1], v: V[1], s: tp.c, k: 'c' };
+  const hold = (s) => (s ? { n: 'Tieni', v: 'tieni', s: s, k: 'h' } : null);
+  const ph = tp.w === 'push' ? [ecc, hold(tp.b), con, hold(tp.t)] : [con, hold(tp.t), ecc, hold(tp.b)];
   return ph.filter((p) => p && p.s > 0);
 }
 function tempoTxt(tp) {

@@ -97,41 +97,93 @@ function capsule(a, b, wa, wb, c) {
     '<circle cx="' + a[0].toFixed(1) + '" cy="' + a[1].toFixed(1) + '" r="' + (wa / 2).toFixed(1) + '" fill="' + c + '"/><circle cx="' + b[0].toFixed(1) + '" cy="' + b[1].toFixed(1) + '" r="' + (wb / 2).toFixed(1) + '" fill="' + c + '"/>';
 }
 /* Muscolo allenato → parti da evidenziare in verde. */
-const HL_PARTS = { pet: ['chest'], dor: ['back'], core: ['torso'], spa: ['delt'], bic: ['ua'], tri: ['ua'], qua: ['th'], fem: ['th'], glu: ['glute'], pol: ['sh'], collo: ['neck'] };
+const HL_PARTS = { pet: ['chest'], dor: ['back'], core: ['torso'], spa: ['delt'], bic: ['bic'], tri: ['tri'], qua: ['quad'], fem: ['ham'], glu: ['glute'], pol: ['calf'], collo: ['neck'] };
+/* Colori: pelle, maglietta, pantaloncini, scarpe, capelli. Il lato lontano è più scuro. */
+const PAL = {
+  n: { skin: '#E2B48C', skin2: '#C99872', shirt: '#4A5363', shorts: '#20242C', shoe: '#F1F2F4', sole: '#9CA0A8', hair: '#2B231E', eye: '#1B1B1F' },
+  f: { skin: '#A97E5E', skin2: '#946B4E', shirt: '#343B47', shorts: '#16191F', shoe: '#B8BBC2', sole: '#73767D', hair: '#211B17', eye: '#1B1B1F' }
+};
+const HLC = { n: '#C4F03A', f: '#8DAD2B' };
+const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+const unit2 = (a, b) => { const d = [b[0] - a[0], b[1] - a[1]]; const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
+const ell = (c, rx, ry, ang, fill, op) => '<ellipse cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" rx="' + rx + '" ry="' + ry + '" transform="rotate(' + ang.toFixed(0) + ' ' + c[0].toFixed(1) + ' ' + c[1].toFixed(1) + ')" fill="' + fill + '"' + (op ? ' opacity="' + op + '"' : '') + '/>';
+const angOf = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+
 function figureSvg(J, front, hl) {
   const parts = HL_PARTS[hl] || [];
-  const NEAR = '#ECECEF', FAR = '#83838B', HN = '#C4F03A', HF = '#86A52A';
-  const col = (part, near) => (parts.indexOf(part) >= 0 ? (near ? HN : HF) : (near ? NEAR : FAR));
-  const leg = (s, near) => capsule(J['hipr' + s], J['knee' + s], 10, 7.6, col('th', near)) + capsule(J['knee' + s], J['ankle' + s], 7.4, 5.2, col('sh', near)) + capsule(J['ankle' + s], J['toe' + s], 5, 3.6, near ? NEAR : FAR);
-  const arm = (s, near) => capsule(J['shr' + s], J['elbow' + s], 7.2, 5.6, col('ua', near)) + capsule(J['elbow' + s], J['hand' + s], 5.4, 4.2, near ? NEAR : FAR) +
-    '<circle cx="' + J['hand' + s][0].toFixed(1) + '" cy="' + J['hand' + s][1].toFixed(1) + '" r="3.1" fill="' + (near ? NEAR : FAR) + '"/>';
-  // collo e testa, con il "naso" che indica dove guarda la figura
+  const on = (p) => parts.indexOf(p) >= 0;
+  /* Gamba: pantaloncini sulla coscia, ginocchio, polpaccio in rilievo, scarpa. */
+  const leg = (s, side) => {
+    const c = PAL[side], H = HLC[side];
+    const hp = J['hipr' + s], kn = J['knee' + s], an = J['ankle' + s], to = J['toe' + s];
+    const toeDir = unit2(an, to);
+    let o = capsule(hp, kn, 11.5, 8.2, c.skin);
+    // muscoli della coscia (davanti quadricipiti, dietro femorali), visibili sotto i pantaloncini
+    const th = unit2(hp, kn); const nrm = [-th[1], th[0]]; const fr = (nrm[0] * toeDir[0] + nrm[1] * toeDir[1]) > 0 ? 1 : -1; // lato "davanti" della gamba
+    const qC = add(lerp2(hp, kn, 0.62), nrm, 2.2 * fr), hC = add(lerp2(hp, kn, 0.6), nrm, -2.2 * fr);
+    o += capsule(hp, lerp2(hp, kn, 0.48), 12.2, 10.6, c.shorts); // pantaloncini
+    if (on('quad')) o += ell(qC, 7, 3.4, angOf(hp, kn), H, 0.92); if (on('ham')) o += ell(hC, 7, 3.4, angOf(hp, kn), H, 0.92);
+    o += capsule(kn, an, 7.8, 4.8, c.skin);
+    const cC = add(lerp2(kn, an, 0.3), toeDir, -2); // polpaccio, dietro la tibia
+    o += ell(cC, 5.6, 3.3, angOf(kn, an), on('calf') ? H : c.skin2, on('calf') ? 0 : 0.9);
+    o += capsule(an, to, 6.4, 4.6, c.shoe) + capsule(add(an, toeDir, 0.5), to, 2.2, 2, c.sole);
+    return o;
+  };
+  /* Braccio: manica corta, bicipite/tricipite in rilievo, avambraccio, mano. */
+  const arm = (s, side) => {
+    const c = PAL[side], H = HLC[side];
+    const sh = J['shr' + s], el = J['elbow' + s], ha = J['hand' + s];
+    let o = capsule(sh, el, 7.4, 5.6, c.skin);
+    const ua = unit2(sh, el); const nrm = [-ua[1], ua[0]]; const fa = unit2(el, ha);
+    const fr = (nrm[0] * fa[0] + nrm[1] * fa[1]) > 0 ? 1 : -1; // il bicipite sta dal lato in cui si piega il gomito
+    const bC = add(lerp2(sh, el, 0.58), nrm, 1.7 * fr), tC = add(lerp2(sh, el, 0.55), nrm, -1.7 * fr);
+    if (on('bic')) o += ell(bC, 5.4, 2.8, angOf(sh, el), H); else o += ell(bC, 4.8, 2.4, angOf(sh, el), c.skin2, 0.55);
+    if (on('tri')) o += ell(tC, 5.4, 2.8, angOf(sh, el), H);
+    o += capsule(sh, lerp2(sh, el, 0.38), 8.8, 8, c.shirt); // manica
+    if (on('delt')) o += '<circle cx="' + sh[0].toFixed(1) + '" cy="' + sh[1].toFixed(1) + '" r="4.8" fill="' + H + '"/>';
+    o += capsule(el, ha, 5.4, 4, c.skin) + '<circle cx="' + ha[0].toFixed(1) + '" cy="' + ha[1].toFixed(1) + '" r="3.3" fill="' + c.skin + '"/>';
+    return o;
+  };
+  const c = PAL.n, H = HLC.n;
   const nd = [(J.head[0] - J.sh[0]) / BODY.neck, (J.head[1] - J.sh[1]) / BODY.neck];
   const face = front ? [0, 0] : [-nd[1], nd[0]];
-  const neck = capsule(J.sh, add(J.sh, nd, 5.5), 5.4, 4.6, col('neck', true));
-  const head = '<circle cx="' + J.head[0].toFixed(1) + '" cy="' + J.head[1].toFixed(1) + '" r="7" fill="' + NEAR + '"/>' +
-    (front ? '' : '<circle cx="' + (J.head[0] + face[0] * 6.3 + nd[0] * 0.5).toFixed(1) + '" cy="' + (J.head[1] + face[1] * 6.3 + nd[1] * 0.5).toFixed(1) + '" r="1.9" fill="' + NEAR + '"/>') +
-    '<circle cx="' + (J.head[0] - face[0] * 2 + nd[0] * 2.6).toFixed(1) + '" cy="' + (J.head[1] - face[1] * 2 + nd[1] * 2.6).toFixed(1) + '" r="4.6" fill="#55555C" opacity=".55"/>';
+  const neck = capsule(J.sh, add(J.sh, nd, 5.6), 5.6, 4.8, on('neck') ? H : c.skin);
+  // testa: capelli dietro, viso, orecchio, occhio, naso
+  const hd = J.head;
+  let head = '<circle cx="' + hd[0].toFixed(1) + '" cy="' + hd[1].toFixed(1) + '" r="7" fill="' + c.skin + '"/>';
+  if (front) head += '<path d="M' + (hd[0] - 7).toFixed(1) + ' ' + (hd[1] - 1).toFixed(1) + ' a7 7 0 0 1 14 0 q-7 -3.2 -14 0z" fill="' + c.hair + '"/>';
+  else {
+    const back = [-face[0], -face[1]]; const top = [-nd[0] * -1, -nd[1] * -1];
+    const hc = add(add(hd, back, 1.6), nd, 1.3);
+    head = '<circle cx="' + hc[0].toFixed(1) + '" cy="' + hc[1].toFixed(1) + '" r="6.6" fill="' + c.hair + '"/>' +
+      '<circle cx="' + (hd[0] + face[0] * 0.9 - nd[0] * 0.4).toFixed(1) + '" cy="' + (hd[1] + face[1] * 0.9 - nd[1] * 0.4).toFixed(1) + '" r="6.3" fill="' + c.skin + '"/>';
+    const nose = add(add(hd, face, 6.6), nd, -0.6); const eye = add(add(hd, face, 3.6), nd, 1.3); const ear = add(add(hd, back, 0.6), nd, -0.4);
+    head += '<circle cx="' + nose[0].toFixed(1) + '" cy="' + nose[1].toFixed(1) + '" r="1.6" fill="' + c.skin + '"/>' +
+      '<circle cx="' + ear[0].toFixed(1) + '" cy="' + ear[1].toFixed(1) + '" r="1.7" fill="' + c.skin2 + '"/>' +
+      '<circle cx="' + eye[0].toFixed(1) + '" cy="' + eye[1].toFixed(1) + '" r="0.95" fill="' + c.eye + '"/>';
+  }
   let torso;
   if (front) {
-    const c = parts.length && ['chest', 'back', 'torso'].some((q) => parts.indexOf(q) >= 0) ? HN : NEAR;
-    torso = '<path d="M' + J.shrF[0].toFixed(1) + ' ' + (J.shrF[1] - 2).toFixed(1) + ' L' + J.shrB[0].toFixed(1) + ' ' + (J.shrB[1] - 2).toFixed(1) + ' L' + (J.hiprB[0] - 1).toFixed(1) + ' ' + (J.hiprB[1] + 2).toFixed(1) + ' L' + (J.hiprF[0] + 1).toFixed(1) + ' ' + (J.hiprF[1] + 2).toFixed(1) + 'Z" fill="' + c + '" stroke="' + c + '" stroke-width="5" stroke-linejoin="round"/>' +
-      (parts.indexOf('delt') >= 0 ? '<circle cx="' + J.shrF[0].toFixed(1) + '" cy="' + J.shrF[1].toFixed(1) + '" r="4.6" fill="' + HN + '"/><circle cx="' + J.shrB[0].toFixed(1) + '" cy="' + J.shrB[1].toFixed(1) + '" r="4.6" fill="' + HN + '"/>' : '');
+    torso = '<path d="M' + J.shrF[0].toFixed(1) + ' ' + (J.shrF[1] - 2).toFixed(1) + ' L' + J.shrB[0].toFixed(1) + ' ' + (J.shrB[1] - 2).toFixed(1) + ' L' + (J.hiprB[0] - 0.5).toFixed(1) + ' ' + (J.hiprB[1] - 6).toFixed(1) + ' L' + (J.hiprF[0] + 0.5).toFixed(1) + ' ' + (J.hiprF[1] - 6).toFixed(1) + 'Z" fill="' + c.shirt + '" stroke="' + c.shirt + '" stroke-width="5" stroke-linejoin="round"/>' +
+      '<path d="M' + (J.hiprF[0] + 2).toFixed(1) + ' ' + (J.hiprF[1] - 6).toFixed(1) + ' L' + (J.hiprB[0] - 2).toFixed(1) + ' ' + (J.hiprB[1] - 6).toFixed(1) + ' L' + (J.hiprB[0] - 2).toFixed(1) + ' ' + (J.hiprB[1] + 4).toFixed(1) + ' L' + (J.hiprF[0] + 2).toFixed(1) + ' ' + (J.hiprF[1] + 4).toFixed(1) + 'Z" fill="' + c.shorts + '" stroke="' + c.shorts + '" stroke-width="4" stroke-linejoin="round"/>';
+    if (on('chest') || on('torso')) torso += ell(lerp2(J.sh, J.hip, on('chest') ? 0.25 : 0.55), 8, on('chest') ? 4 : 7, 0, H);
+    if (on('delt')) torso += '<circle cx="' + J.shrF[0].toFixed(1) + '" cy="' + J.shrF[1].toFixed(1) + '" r="4.6" fill="' + H + '"/><circle cx="' + J.shrB[0].toFixed(1) + '" cy="' + J.shrB[1].toFixed(1) + '" r="4.6" fill="' + H + '"/>';
   } else {
-    // busto: bacino più stretto, torace più largo; petto o schiena evidenziati sul lato giusto
-    const d = [J.sh[0] - J.hip[0], J.sh[1] - J.hip[1]]; const l = Math.hypot(d[0], d[1]) || 1; const n = [d[1] / l, -d[0] / l]; // n = verso la schiena
-    torso = capsule(J.hip, J.sh, 12.5, 14.5, col('torso', true));
-    const chestC = add(add(J.hip, d, 0.66), n, -3.6), backC = add(add(J.hip, d, 0.62), n, 3.6);
-    if (parts.indexOf('chest') >= 0) torso += '<ellipse cx="' + chestC[0].toFixed(1) + '" cy="' + chestC[1].toFixed(1) + '" rx="4.4" ry="7" transform="rotate(' + (Math.atan2(d[1], d[0]) * 180 / Math.PI + 90).toFixed(0) + ' ' + chestC[0].toFixed(1) + ' ' + chestC[1].toFixed(1) + ')" fill="' + HN + '"/>';
-    if (parts.indexOf('back') >= 0) torso += '<ellipse cx="' + backC[0].toFixed(1) + '" cy="' + backC[1].toFixed(1) + '" rx="4.4" ry="10" transform="rotate(' + (Math.atan2(d[1], d[0]) * 180 / Math.PI + 90).toFixed(0) + ' ' + backC[0].toFixed(1) + ' ' + backC[1].toFixed(1) + ')" fill="' + HN + '"/>';
-    if (parts.indexOf('glute') >= 0) { const g = add(J.hip, n, 3.4); torso += '<circle cx="' + g[0].toFixed(1) + '" cy="' + g[1].toFixed(1) + '" r="6.2" fill="' + HN + '"/>'; }
-    if (parts.indexOf('delt') >= 0) torso += '<circle cx="' + J.sh[0].toFixed(1) + '" cy="' + J.sh[1].toFixed(1) + '" r="5.2" fill="' + HN + '"/>';
+    // busto: maglietta con petto e schiena modellati, bacino nei pantaloncini, glutei
+    const d = [J.sh[0] - J.hip[0], J.sh[1] - J.hip[1]]; const l = Math.hypot(d[0], d[1]) || 1; const bk = [d[1] / l, -d[0] / l]; const fr = [-bk[0], -bk[1]];
+    const ang = angOf(J.hip, J.sh);
+    torso = capsule(J.hip, J.sh, 13, 15.6, c.shirt);
+    torso += ell(add(lerp2(J.hip, J.sh, 0.72), fr, 2.6), 6.5, 4.6, ang, on('chest') ? H : c.shirt);   // petto
+    torso += ell(add(lerp2(J.hip, J.sh, 0.62), bk, 2.4), 8.5, 4.2, ang, on('back') ? H : c.shirt);    // dorsali
+    if (on('torso')) torso += ell(add(lerp2(J.hip, J.sh, 0.4), fr, 2.6), 6.5, 3.6, ang, H);
+    torso += capsule(add(J.hip, d, -0.04), lerp2(J.hip, J.sh, 0.2), 13.6, 13.4, c.shorts);           // pantaloncini
+    torso += '<circle cx="' + add(J.hip, bk, 3).map((v) => v.toFixed(1)).join('" cy="') + '" r="6" fill="' + (on('glute') ? H : c.shorts) + '"/>'; // glutei
+    if (on('delt')) torso += '<circle cx="' + J.sh[0].toFixed(1) + '" cy="' + J.sh[1].toFixed(1) + '" r="5.4" fill="' + H + '"/>';
   }
-  // ombra a terra sotto la figura
   const low = Math.max(J.ankleF[1], J.ankleB[1], J.handF[1], J.hip[1]);
   const shadow = low > FLOOR - 14 ? '<ellipse cx="' + ((J.hip[0] + J.sh[0]) / 2).toFixed(1) + '" cy="' + (FLOOR + 1.5) + '" rx="34" ry="2.6" fill="#000" opacity=".45"/>' : '';
-  if (front) return shadow + leg('B', true) + leg('F', true) + torso + neck + head + arm('B', true) + arm('F', true);
-  return shadow + arm('B', false) + leg('B', false) + torso + neck + head + leg('F', true) + arm('F', true);
+  if (front) return shadow + leg('B', 'n') + leg('F', 'n') + torso + neck + head + arm('B', 'n') + arm('F', 'n');
+  return shadow + arm('B', 'f') + leg('B', 'f') + torso + neck + head + leg('F', 'n') + arm('F', 'n');
 }
 
 /* ---------- Animazioni ---------- */
