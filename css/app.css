@@ -292,3 +292,9 @@ body.full #tabbar{display:none}
 .view{animation:fade .18s}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:360px){h1{font-size:26px}.hero h2{font-size:24px}.stepper .v{min-width:56px;font-size:22px}.stepper button{width:38px;height:38px}.check{width:46px;height:46px}}
+
+/* Animazione esercizio */
+.anim{background:radial-gradient(ellipse at 50% 85%,rgba(196,240,58,.08),rgba(196,240,58,0) 65%),var(--s2);border:1px solid var(--line);border-radius:var(--r2);margin:14px 0 4px;overflow:hidden}
+.anim svg{display:block;width:100%;height:auto;max-height:230px}
+.anim.sm svg{max-height:168px}
+.anim-note{font-size:11.5px;color:var(--mu);text-align:center;margin-top:6px}

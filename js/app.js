@@ -38,6 +38,7 @@ function render() {
   }
   const app = $('#app'); app.innerHTML = '<div class="view">' + html + '</div>';
   $('#tabbar .in').innerHTML = TABS.map((t) => '<button data-a="tab" data-v="' + t[0] + '" class="' + (route === t[0] ? 'on' : '') + '" aria-label="' + t[1] + '"' + (route === t[0] ? ' aria-current="page"' : '') + '>' + ICON[t[2]] + t[1] + '</button>').join('');
+  syncHistory();
 }
 function go(r) { if (r !== 'profile') pdraft = null; route = r; render(); window.scrollTo(0, 0); }
 
@@ -87,10 +88,10 @@ function openOv(o) {
   } else if (o.mode === 'pause') {
     h = '<div class="letter" style="width:76px;height:76px;border-radius:50%;margin-bottom:18px">' + ICON.pause + '</div><h2>In pausa</h2><p class="muted center" style="margin:8px 0 26px">Il tempo dell’allenamento è fermo. I dati sono salvati: puoi anche chiudere l’app.</p><div class="clock" id="ovT" style="font-size:40px;margin-bottom:26px">0:00</div><button class="btn primary" data-a="unpause">' + ICON.play + 'Riprendi</button>';
   }
-  b.innerHTML = h; $('#ov').classList.add('show');
+  b.innerHTML = h; $('#ov').classList.add('show'); syncHistory();
   if (o.mode !== 'last') { ovIv = setInterval(tickOv, 250); tickOv(); }
 }
-function closeOv() { clearInterval(ovIv); ov = null; $('#ov').classList.remove('show'); if (S.active && S.active.timer) { S.active.timer = null; save(); } }
+function closeOv() { clearInterval(ovIv); ov = null; $('#ov').classList.remove('show'); if (S.active && S.active.timer) { S.active.timer = null; save(); } syncHistory(); }
 function tickOv() {
   if (!ov) return; const t = $('#ovT'); const ring = $('#ovRing');
   if (ov.mode === 'rest') {
@@ -442,6 +443,33 @@ function restoreTimer() {
   if (t.end > Date.now()) openOv({ mode: 'rest', end: t.end, total: t.total, ei: t.ei, si: t.si, nextLbl: t.nextLbl, next: t.next });
   else { a.timer = null; save(); }
 }
+
+/* ---------- Tasto indietro del telefono ----------
+   Quando l'app non è nella schermata Oggi (o c'è un pannello aperto) aggiunge una voce
+   alla cronologia: il tasto indietro la consuma e Leva torna indietro al suo interno
+   invece di chiudersi. Dalla schermata Oggi, senza pannelli aperti, l'app si chiude. */
+let navGuard = false, navIgnore = false;
+function isDeep() {
+  if ($('#sheet').classList.contains('show') || ov) return true;
+  if (!S.profile) return !!(ob && ob.step > 0);
+  return route !== 'home';
+}
+function syncHistory() {
+  const deep = isDeep();
+  if (deep && !navGuard) { try { history.pushState({ leva: 1 }, ''); navGuard = true; } catch (e) {} }
+  else if (!deep && navGuard && !navIgnore) { navIgnore = true; history.back(); }
+}
+function handleBack() {
+  if ($('#sheet').classList.contains('show')) { if (S.meta && S.meta.news) { S.meta.news = false; save(); } closeSheet(); return; }
+  if (ov) { if (ov.mode === 'pause') A.leave(); else { closeOv(); render(); } return; }
+  if (!S.profile) { if (ob && ob.step > 0) A.obBack(); return; }
+  if (route === 'session') { A.leave(); return; }
+  if (route !== 'home') { summary = null; go('home'); }
+}
+window.addEventListener('popstate', () => {
+  if (navIgnore) { navIgnore = false; navGuard = false; syncHistory(); return; }
+  navGuard = false; handleBack(); syncHistory();
+});
 
 /* ---------- Eventi ---------- */
 document.addEventListener('click', (ev) => {

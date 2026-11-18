@@ -51,8 +51,23 @@ function vHome() {
     : 'Per aumentare la massa servono un leggero surplus calorico e abbastanza proteine: come riferimento generale si indicano spesso 1,6–2,2 g per kg al giorno. Per un piano su misura rivolgiti a un nutrizionista.';
   h += '<div class="sec-h"><h3>Obiettivo peso</h3><button class="link" data-a="weightSheet">+ Registra</button></div>';
   h += '<section class="card"><div class="row" style="margin-bottom:12px"><div class="f"><span class="big-n">' + fmt1(cw) + '<small>kg</small></span></div><div class="muted small" style="text-align:right">obiettivo<br><b style="color:var(--tx)">' + fmt1(p.goal) + ' kg</b></div></div>' +
-    '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><div class="muted small" style="margin-top:8px">' + (Math.abs(cw - p.goal) < 0.05 ? 'Obiettivo raggiunto!' : (cw < p.goal ? 'Mancano ' : 'Sei sopra di ') + fmt1(Math.abs(p.goal - cw)) + ' kg') + '</div></section>';
+    '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><div class="muted small" style="margin-top:8px">' + (Math.abs(cw - p.goal) < 0.05 ? 'Obiettivo raggiunto!' : (cw < p.goal ? 'Mancano ' : 'Sei sopra di ') + fmt1(Math.abs(p.goal - cw)) + ' kg') + '</div>' + weightMini() + '</section>';
   if (S.settings.nutri !== false) h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.food + '</span><div class="f"><h4 style="margin-bottom:4px">Alimentazione</h4><p class="muted small">' + esc(tip) + '</p><p class="muted tiny" style="margin-top:6px">Indicazione generale, non personalizzata.' + (trend ? '' : ' I suggerimenti sull’andamento compaiono dopo almeno 3 settimane e 6 pesate.') + '</p></div></section>';
+  return h;
+}
+
+/* Mini grafico del peso e promemoria della pesata (2 volte a settimana). */
+function weightMini() {
+  const w = S.weights; const last = w[w.length - 1];
+  const days = last ? dayN(today()) - dayN(last.d) : null;
+  const when = days == null ? 'mai' : days === 0 ? 'oggi' : days === 1 ? 'ieri' : days + ' giorni fa';
+  let h = '<div class="sp16"></div>';
+  if (w.length >= 2) {
+    const pts = w.slice(-20);
+    h += lineChart(pts.map((e) => ({ x: dayN(e.d), y: e.kg })), { goal: S.profile.goal, h: 130, l0: fmtD(pts[0].d), l1: fmtD(pts[pts.length - 1].d), label: 'Andamento del peso' });
+  } else h += '<p class="muted small">Pesati 2 volte a settimana, al mattino a digiuno: dalla seconda pesata qui compare il grafico dell’andamento.</p>';
+  h += '<div class="row" style="margin-top:10px"><div class="f muted small">Ultima pesata: ' + esc(when) + ' · ' + plural(w.length, 'misurazione', 'misurazioni') + '</div>' +
+    (days == null || days >= 4 ? '<button class="btn primary xs" data-a="weightSheet">Pesati ora</button>' : '<span class="tag ac">' + ICON.check.replace('<svg', '<svg width="12" height="12"') + 'in regola</span>') + '</div>';
   return h;
 }
 
@@ -154,6 +169,7 @@ function sheetEx(id) {
   const excluded = p.excl.indexOf(id) >= 0;
   let h = '<div class="eyebrow">' + esc(L.name) + (n > 1 ? ' · livello ' + (e.i + 1) + ' di ' + n : '') + '</div><h2 style="margin:6px 0 12px">' + esc(e.n) + '</h2>';
   h += '<div class="tags"><span class="tag ac">' + MUSCLES[e.m] + '</span>' + e.s.map((m) => '<span class="tag">' + MUSCLES[m] + '</span>').join('') + (e.u === 's' ? '<span class="tag">' + ICON.clock + 'a tempo</span>' : '') + (e.r ? '<span class="tag">' + rangeTxt(e.r, e.u) + '</span>' : '') + '</div>';
+  const an = animBox(id); if (an) h += an + '<p class="anim-note">Animazione indicativa: segui anche i passaggi qui sotto.</p>';
   h += '<p class="desc">' + esc(e.d) + '</p>';
   if (e.pre) h += '<div class="safety" style="background:var(--acd);color:var(--tx2)">' + ICON.target.replace('<svg', '<svg style="color:var(--ac)"') + '<span><b style="color:var(--ac)">Prima di iniziare:</b> ' + esc(e.pre) + '</span></div>';
   h += '<div class="sp16"></div><h4 style="margin-bottom:10px">Esecuzione</h4><ol class="steps">' + e.how.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol>';
@@ -333,6 +349,7 @@ function vSession() {
   h += '<div class="row"><div class="f"><div class="eyebrow">Esercizio ' + (a.idx + 1) + ' di ' + a.ex.length + '</div></div><button class="link" data-a="exList">Tutti gli esercizi</button></div>';
   h += '<h1 class="ex-name">' + esc(x.n) + '</h1>';
   h += '<div class="tags"><span class="tag ac">' + MUSCLES[x.m] + '</span><span class="tag">' + e.sets.length + ' × ' + rangeTxt(e.r, u, e.side) + '</span><span class="tag">' + ICON.clock + 'rec. ' + e.rest + ' s</span></div>';
+  h += animBox(e.x, 'sm');
   const ids = L.lv.map((l) => l.id);
   if (ids.length > 1) {
     const prev = nextAvail(e.x, S.profile, -1), next = nextAvail(e.x, S.profile, 1);

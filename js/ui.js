@@ -120,7 +120,8 @@ function tile(icon, label, value, act, v) {
 function dots(i, n) { let h = '<span class="dots5" aria-label="Difficoltà ' + (i + 1) + ' su ' + n + '">'; for (let k = 0; k < n; k++) h += '<i class="' + (k <= i ? 'on' : '') + '"></i>'; return h + '</span>'; }
 function rangeTxt(r, u, side) { return r[0] + '–' + r[1] + ' ' + unit(u) + (side ? ' per lato' : ''); }
 
-function openSheet(html) { $('#sheetBody').innerHTML = html; $('#sheet').classList.add('show'); $('#sheet .pane').scrollTop = 0; }
-function closeSheet() { $('#sheet').classList.remove('show'); }
+const navHook = () => { if (typeof syncHistory === 'function') syncHistory(); };
+function openSheet(html) { $('#sheetBody').innerHTML = html; $('#sheet').classList.add('show'); $('#sheet .pane').scrollTop = 0; navHook(); }
+function closeSheet() { $('#sheet').classList.remove('show'); navHook(); }
 let toastT = null;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
