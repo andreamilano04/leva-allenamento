@@ -107,6 +107,19 @@ const HLC = { n: '#C4F03A', f: '#8DAD2B' };
 const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const unit2 = (a, b) => { const d = [b[0] - a[0], b[1] - a[1]]; const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; };
 const ell = (c, rx, ry, ang, fill, op) => '<ellipse cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" rx="' + rx + '" ry="' + ry + '" transform="rotate(' + ang.toFixed(0) + ' ' + c[0].toFixed(1) + ' ' + c[1].toFixed(1) + ')" fill="' + fill + '"' + (op ? ' opacity="' + op + '"' : '') + '/>';
+const OUT = '#0D0E11'; // contorno: separa braccia e gambe dal busto
+/* Riflesso di luce dall'alto lungo un segmento: dà volume. */
+function shine(a, b, wa, wb, col, op) {
+  const u = unit2(a, b); let n = [-u[1], u[0]]; if (n[1] > 0) n = [-n[0], -n[1]];
+  const a2 = add(lerp2(a, b, 0.12), n, wa * 0.24), b2 = add(lerp2(a, b, 0.86), n, wb * 0.24);
+  return '<g opacity="' + (op || 0.32) + '">' + capsule(a2, b2, wa * 0.3, wb * 0.26, col) + '</g>';
+}
+/* Mano: palmo arrotondato con pollice, orientata come l'avambraccio. */
+function hand(el, ha, col) {
+  const u = unit2(el, ha); const n = [-u[1], u[0]];
+  const tip = add(ha, u, 2.6), th = add(add(ha, n, 2.2), u, 0.6);
+  return capsule(ha, tip, 6.4, 4.6, col) + capsule(add(ha, n, 1.2), th, 2.4, 2, col);
+}
 const angOf = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
 
 function figureSvg(J, front, hl) {
@@ -117,23 +130,25 @@ function figureSvg(J, front, hl) {
     const c = PAL[side], H = HLC[side];
     const hp = J['hipr' + s], kn = J['knee' + s], an = J['ankle' + s], to = J['toe' + s];
     const toeDir = unit2(an, to);
-    let o = capsule(hp, kn, 11.5, 8.2, c.skin);
+    let o = side === 'n' ? capsule(lerp2(hp, kn, 0.5), kn, 11.8, 10, OUT) + capsule(kn, an, 9.6, 6.6, OUT) + capsule(an, to, 8.2, 6.4, OUT) : '';
+    o += capsule(hp, kn, 11.5, 8.2, c.skin);
     // muscoli della coscia (davanti quadricipiti, dietro femorali), visibili sotto i pantaloncini
     const th = unit2(hp, kn); const nrm = [-th[1], th[0]]; const fr = (nrm[0] * toeDir[0] + nrm[1] * toeDir[1]) > 0 ? 1 : -1; // lato "davanti" della gamba
     const qC = add(lerp2(hp, kn, 0.62), nrm, 2.2 * fr), hC = add(lerp2(hp, kn, 0.6), nrm, -2.2 * fr);
     o += capsule(hp, lerp2(hp, kn, 0.48), 12.2, 10.6, c.shorts); // pantaloncini
     if (on('quad')) o += ell(qC, 7, 3.4, angOf(hp, kn), H, 0.92); if (on('ham')) o += ell(hC, 7, 3.4, angOf(hp, kn), H, 0.92);
-    o += capsule(kn, an, 7.8, 4.8, c.skin);
+    o += capsule(kn, an, 7.8, 4.8, c.skin) + shine(kn, an, 7.8, 4.8, '#FFE3C8', side === 'n' ? 0.3 : 0.12);
     const cC = add(lerp2(kn, an, 0.3), toeDir, -2); // polpaccio, dietro la tibia
     o += ell(cC, 5.6, 3.3, angOf(kn, an), on('calf') ? H : c.skin2, on('calf') ? 0 : 0.9);
-    o += capsule(an, to, 6.4, 4.6, c.shoe) + capsule(add(an, toeDir, 0.5), to, 2.2, 2, c.sole);
+    o += capsule(an, to, 6.4, 4.6, c.shoe) + capsule(add(an, toeDir, 0.5), to, 2.2, 2, c.sole) + capsule(lerp2(an, to, 0.15), lerp2(an, to, 0.75), 1.1, 1.1, side === 'n' ? '#C4F03A' : '#6E8A22');
     return o;
   };
   /* Braccio: manica corta, bicipite/tricipite in rilievo, avambraccio, mano. */
   const arm = (s, side) => {
     const c = PAL[side], H = HLC[side];
     const sh = J['shr' + s], el = J['elbow' + s], ha = J['hand' + s];
-    let o = capsule(sh, el, 7.4, 5.6, c.skin);
+    let o = side === 'n' ? capsule(sh, el, 10.6, 7.4, OUT) + capsule(el, ha, 7.2, 5.8, OUT) + '<circle cx="' + add(ha, unit2(el, ha), 1.3)[0].toFixed(1) + '" cy="' + add(ha, unit2(el, ha), 1.3)[1].toFixed(1) + '" r="4.6" fill="' + OUT + '"/>' : '';
+    o += capsule(sh, el, 7.4, 5.6, c.skin);
     const ua = unit2(sh, el); const nrm = [-ua[1], ua[0]]; const fa = unit2(el, ha);
     const fr = (nrm[0] * fa[0] + nrm[1] * fa[1]) > 0 ? 1 : -1; // il bicipite sta dal lato in cui si piega il gomito
     const bC = add(lerp2(sh, el, 0.58), nrm, 1.7 * fr), tC = add(lerp2(sh, el, 0.55), nrm, -1.7 * fr);
@@ -141,13 +156,14 @@ function figureSvg(J, front, hl) {
     if (on('tri')) o += ell(tC, 5.4, 2.8, angOf(sh, el), H);
     o += capsule(sh, lerp2(sh, el, 0.38), 8.8, 8, c.shirt); // manica
     if (on('delt')) o += '<circle cx="' + sh[0].toFixed(1) + '" cy="' + sh[1].toFixed(1) + '" r="4.8" fill="' + H + '"/>';
-    o += capsule(el, ha, 5.4, 4, c.skin) + '<circle cx="' + ha[0].toFixed(1) + '" cy="' + ha[1].toFixed(1) + '" r="3.3" fill="' + c.skin + '"/>';
+    o += shine(sh, lerp2(sh, el, 0.4), 8.8, 8, '#8A95A8', side === 'n' ? 0.45 : 0.15);
+    o += capsule(el, ha, 5.4, 4, c.skin) + shine(el, ha, 5.4, 4, '#FFE3C8', side === 'n' ? 0.3 : 0.12) + hand(el, ha, c.skin);
     return o;
   };
   const c = PAL.n, H = HLC.n;
   const nd = [(J.head[0] - J.sh[0]) / BODY.neck, (J.head[1] - J.sh[1]) / BODY.neck];
   const face = front ? [0, 0] : [-nd[1], nd[0]];
-  const neck = capsule(J.sh, add(J.sh, nd, 5.6), 5.6, 4.8, on('neck') ? H : c.skin);
+  const neck = capsule(J.sh, add(J.sh, nd, 6.4), 7.2, 6.4, OUT) + capsule(J.sh, add(J.sh, nd, 6.4), 5.6, 4.8, on('neck') ? H : c.skin);
   // testa: capelli dietro, viso, orecchio, occhio, naso
   const hd = J.head;
   let head = '<circle cx="' + hd[0].toFixed(1) + '" cy="' + hd[1].toFixed(1) + '" r="7" fill="' + c.skin + '"/>';
@@ -158,6 +174,9 @@ function figureSvg(J, front, hl) {
     head = '<circle cx="' + hc[0].toFixed(1) + '" cy="' + hc[1].toFixed(1) + '" r="6.6" fill="' + c.hair + '"/>' +
       '<circle cx="' + (hd[0] + face[0] * 0.9 - nd[0] * 0.4).toFixed(1) + '" cy="' + (hd[1] + face[1] * 0.9 - nd[1] * 0.4).toFixed(1) + '" r="6.3" fill="' + c.skin + '"/>';
     const nose = add(add(hd, face, 6.6), nd, -0.6); const eye = add(add(hd, face, 3.6), nd, 1.3); const ear = add(add(hd, back, 0.6), nd, -0.4);
+    const brow = add(eye, nd, 1.6);
+    head = '<circle cx="' + hd[0].toFixed(1) + '" cy="' + hd[1].toFixed(1) + '" r="7.9" fill="' + OUT + '"/>' + head;
+    head += '<path d="M' + add(brow, face, -1.3).map((v) => v.toFixed(1)).join(' ') + ' L' + add(brow, face, 1.3).map((v) => v.toFixed(1)).join(' ') + '" stroke="' + c.hair + '" stroke-width="0.9" stroke-linecap="round"/>';
     head += '<circle cx="' + nose[0].toFixed(1) + '" cy="' + nose[1].toFixed(1) + '" r="1.6" fill="' + c.skin + '"/>' +
       '<circle cx="' + ear[0].toFixed(1) + '" cy="' + ear[1].toFixed(1) + '" r="1.7" fill="' + c.skin2 + '"/>' +
       '<circle cx="' + eye[0].toFixed(1) + '" cy="' + eye[1].toFixed(1) + '" r="0.95" fill="' + c.eye + '"/>';
@@ -172,12 +191,13 @@ function figureSvg(J, front, hl) {
     // busto: maglietta con petto e schiena modellati, bacino nei pantaloncini, glutei
     const d = [J.sh[0] - J.hip[0], J.sh[1] - J.hip[1]]; const l = Math.hypot(d[0], d[1]) || 1; const bk = [d[1] / l, -d[0] / l]; const fr = [-bk[0], -bk[1]];
     const ang = angOf(J.hip, J.sh);
-    torso = capsule(J.hip, J.sh, 13, 15.6, c.shirt);
+    torso = capsule(J.hip, J.sh, 14.8, 18.2, OUT) + capsule(J.hip, J.sh, 13, 16.4, c.shirt);
+    torso += shine(lerp2(J.hip, J.sh, 0.25), J.sh, 13, 16.4, '#8A95A8', 0.35);
     torso += ell(add(lerp2(J.hip, J.sh, 0.72), fr, 2.6), 6.5, 4.6, ang, on('chest') ? H : c.shirt);   // petto
     torso += ell(add(lerp2(J.hip, J.sh, 0.62), bk, 2.4), 8.5, 4.2, ang, on('back') ? H : c.shirt);    // dorsali
     if (on('torso')) torso += ell(add(lerp2(J.hip, J.sh, 0.4), fr, 2.6), 6.5, 3.6, ang, H);
     torso += capsule(add(J.hip, d, -0.04), lerp2(J.hip, J.sh, 0.2), 13.6, 13.4, c.shorts);           // pantaloncini
-    torso += '<circle cx="' + add(J.hip, bk, 3).map((v) => v.toFixed(1)).join('" cy="') + '" r="6" fill="' + (on('glute') ? H : c.shorts) + '"/>'; // glutei
+    torso += '<circle cx="' + add(J.hip, bk, 3).map((v) => v.toFixed(1)).join('" cy="') + '" r="6" fill="' + (on('glute') ? H : '#2A2F38') + '"/>'; // glutei
     if (on('delt')) torso += '<circle cx="' + J.sh[0].toFixed(1) + '" cy="' + J.sh[1].toFixed(1) + '" r="5.4" fill="' + H + '"/>';
   }
   const low = Math.max(J.ankleF[1], J.ankleB[1], J.handF[1], J.hip[1]);

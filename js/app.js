@@ -70,15 +70,27 @@ function itVoices() {
 }
 function pickVoice() { const vs = itVoices(); return vs.find((v) => v.name === S.settings.voiceName) || vs[0] || null; }
 if (window.speechSynthesis) try { speechSynthesis.onvoiceschanged = () => { if (route === 'profile') render(); }; speechSynthesis.getVoices(); } catch (e) {}
-function speaking() { try { return !!(window.speechSynthesis && S.settings.voice !== false && (speechSynthesis.speaking || speechSynthesis.pending)); } catch (e) { return false; } }
+/* Sta ancora parlando? Su alcuni telefoni speechSynthesis.speaking resta "vero" anche dopo la fine:
+   per non bloccare mai l'allenamento c'è un limite stimato dalla lunghezza della frase. */
+let talkCap = 0;
+function speaking() {
+  try {
+    if (!window.speechSynthesis || S.settings.voice === false || Date.now() > talkCap) return false;
+    return !!(speechSynthesis.speaking || speechSynthesis.pending);
+  } catch (e) { return false; }
+}
 /* Parla. queue = true mette la frase in coda invece di interrompere quella in corso
    (così le parole non vengono tagliate a metà). */
 function say(text, queue, force) {
   try {
     if ((S.settings.voice === false && !force) || !window.speechSynthesis) return false;
-    if (!queue) speechSynthesis.cancel();
+    const busy = speechSynthesis.speaking || speechSynthesis.pending;
+    if (!queue && busy) speechSynthesis.cancel(); // cancel solo se serve: su iPhone cancel+speak a vuoto perde la frase
     const u = new SpeechSynthesisUtterance(text); u.lang = 'it-IT'; u.rate = 0.95; u.pitch = 1;
     const v = pickVoice(); if (v) u.voice = v;
+    const est = 600 + String(text).length * 75; // durata stimata della frase
+    talkCap = Math.max(queue && busy ? talkCap : 0, Date.now()) + est + 1500;
+    u.onend = u.onerror = () => { if (!speechSynthesis.pending) talkCap = Math.min(talkCap, Date.now() + 100); };
     speechSynthesis.speak(u); return true;
   } catch (e) { return false; }
 }
@@ -201,7 +213,7 @@ function rtTick() {
   const left = rtLeft(); const t = document.getElementById('rtT'); const ring = document.getElementById('rtRing'); const lab = document.getElementById('rtL');
   const pr = rtPrep();
   // Se la voce sta ancora parlando, il conto alla rovescia aspetta: la frase non viene interrotta.
-  if (pr > 0 && pr < 1.2 && speaking()) { r.prepEnd += 250; r.end += 250; }
+  if (pr > 0 && pr < 1.2 && speaking() && (r.ext || 0) < 6000) { r.prepEnd += 250; r.end += 250; r.ext = (r.ext || 0) + 250; }
   if (pr > 0) { if (t) t.textContent = Math.ceil(rtPrep()); if (lab) lab.textContent = 'in posizione'; if (ring) ring.setAttribute('stroke-dashoffset', '0'); return; }
   if (lab && lab.textContent !== 'secondi') lab.textContent = 'secondi';
   if (r.prepEnd && r.said == null) { r.said = 'go'; say('Via', true); }
@@ -233,7 +245,7 @@ function holdState(o) {
 }
 function holdTick(t, ring) {
   const o = ov;
-  if (Date.now() < o.start && o.start - Date.now() < 1200 && speaking()) o.start += 250; // aspetta la fine della frase
+  if (Date.now() < o.start && o.start - Date.now() < 1200 && speaking() && (o.ext || 0) < 6000) { o.start += 250; o.ext = (o.ext || 0) + 250; } // aspetta la fine della frase (massimo 6 s)
   const st = holdState(o); const L = document.getElementById('hL'), sub = document.getElementById('hSub'), sd = document.getElementById('hSide');
   if (st.end) { holdFinish(o, o.target); return; }
   if (st.pre != null || st.change != null) {
@@ -265,8 +277,8 @@ function holdFinish(o, v) {
       sempre interrompendo la precedente così la voce resta a tempo con l'omino;
    4. all'inizio di ogni ripetizione la voce dice anche quante ne hai fatte ("3, giù").
    Per gli esercizi per lato: dopo il primo lato "cambia lato" e 4 secondi di pausa. */
-function tempoState() {
-  const o = ov; const now = Date.now();
+function tempoState(at) {
+  const o = ov; const now = at || Date.now();
   if (!o.start) return { intro: true };
   const rep = o.ph.reduce((t, p) => t + p.s, 0); const per = o.target;
   let t = (now - o.start) / 1000; if (t < 0) return { pre: -t };
@@ -285,15 +297,24 @@ function tempoPose(st) {
   else { const pr = o.ph[(st.ph - 1 + o.ph.length) % o.ph.length]; k = pr.k === 'e' ? (push ? 1 : 0) : (push ? 0 : 1); }
   return o.inv ? 1 - k : k;
 }
+const VOICE_LEAD = 300; // ms di anticipo della voce
 function tempoTick() {
   const o = ov; const P = (id) => document.getElementById(id);
-  if (!o.start && Date.now() - o.introAt > 1200 && !speaking()) o.start = Date.now() + 3000; // dopo la frase iniziale: 3, 2, 1
-  if (o.start && Date.now() < o.start && o.start - Date.now() < 900 && speaking()) o.start += 50;
+  // dopo la frase iniziale (al massimo 7 s di attesa): 3, 2, 1
+  if (!o.start && Date.now() - o.introAt > 1200 && (!speaking() || Date.now() - o.introAt > 7000)) o.start = Date.now() + 3000;
   const st = tempoState();
+  // La sintesi vocale del telefono parte con un piccolo ritardo: la parola viene lanciata un po' in anticipo
+  // così si sente proprio all'inizio della fase. Lo schermo e il segnale acustico restano esatti.
+  const sv = o.start ? tempoState(Date.now() + VOICE_LEAD) : st;
   const an = P('tAnim'); if (an) an.innerHTML = frameInner(o.key, tempoPose(st), o.hl);
   const tt = P('tTime'); if (tt) tt.textContent = mmss(o.start ? Math.max(0, (Date.now() - o.start) / 1000) : 0);
   const seq = (on, frac) => o.ph.forEach((p, k) => { const el = P('tq' + k); if (!el) return; el.className = k === on ? 'on' : ''; const bar = el.querySelector('i'); if (bar) bar.style.width = (k === on ? frac * 100 : 0).toFixed(0) + '%'; });
   if (st.intro) { P('tPh').textContent = '…'; seq(-1, 0); return; }
+  if (sv.ph != null) {
+    const vk = sv.sideIdx + ':' + sv.rep + ':' + sv.ph;
+    if (o.lastV !== vk) { o.lastV = vk; const pv = o.ph[sv.ph]; say(sv.ph === 0 && sv.rep > 0 ? sv.rep + ', ' + pv.v : pv.v); } // "3, giù"
+  }
+
   if (st.pre != null) {
     const c = Math.ceil(st.pre); if (o.last !== 'pre' + c) { o.last = 'pre' + c; if (!say(String(c))) tone(660); }
     P('tPh').textContent = c; P('tPh').className = 'tphase h'; P('tRep').textContent = 'Si parte tra…'; seq(-1, 0); return;
@@ -304,14 +325,9 @@ function tempoTick() {
     P('tPh').textContent = Math.ceil(st.change); P('tPh').className = 'tphase h'; P('tRep').textContent = 'Cambia lato'; seq(-1, 0);
     P('tSide').innerHTML = 'Lato 2 di 2 · ' + o.target + ' ripetizioni · <span id="tTime"></span>'; return;
   }
-  const p = o.ph[st.ph]; const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
-  if (o.last !== key) {
-    o.last = key;
-    const txt = st.ph === 0 && st.rep > 0 ? st.rep + ', ' + p.v : p.v; // "3, giù"
-    if (!say(txt)) tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.09);
-    else tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.05); // piccolo segnale preciso in più
-    buzz(30);
-  }
+  const p = o.ph[st.ph];
+  const key = st.sideIdx + ':' + st.rep + ':' + st.ph;
+  if (o.last !== key) { o.last = key; tone(p.k === 'c' ? 990 : p.k === 'e' ? 520 : 700, 0.06); buzz(30); }
   P('tPh').textContent = p.v.toUpperCase(); P('tPh').className = 'tphase ' + p.k;
   P('tRep').innerHTML = 'Ripetizione <b>' + (st.rep + 1) + '</b> di ' + o.target + (o.side ? ' · lato ' + (st.sideIdx + 1) : '');
   seq(st.ph, st.frac);
