@@ -367,7 +367,7 @@ const A = {
   pEq: (t) => { syncInputs(pdraft); const k = t.dataset.v.slice(3); pdraft.equip[k] = !pdraft.equip[k]; render(); },
   pAvoid: (t) => { syncInputs(pdraft); const k = t.dataset.v; const i = pdraft.avoid.indexOf(k); if (i >= 0) pdraft.avoid.splice(i, 1); else pdraft.avoid.push(k); render(); },
   pUnexcl: (t) => { syncInputs(pdraft); pdraft.excl = pdraft.excl.filter((x) => x !== t.dataset.v); render(); },
-  setTog: (t) => { const k = t.dataset.v === 'setSound' ? 'sound' : 'vibrate'; S.settings[k] = !S.settings[k]; save(); if (k === 'sound' && S.settings.sound) { ensureAudio(); beep(1); } syncInputs(pdraft); render(); },
+  setTog: (t) => { const k = { setSound: 'sound', setVibrate: 'vibrate', setNutri: 'nutri' }[t.dataset.v]; S.settings[k] = S.settings[k] === false; save(); if (k === 'sound' && S.settings.sound) { ensureAudio(); beep(1); } syncInputs(pdraft); render(); },
   saveProfile: () => {
     syncInputs(pdraft); const err = validBody(pdraft, false); if (err) return toast(err);
     if (pdraft.wdays.length < 2) return toast('Scegli almeno 2 giorni di allenamento');

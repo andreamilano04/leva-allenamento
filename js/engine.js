@@ -33,12 +33,14 @@ function nextAvail(id, p, dir) {
 }
 
 /* ---------- Risoluzione degli slot ---------- */
-function slotLadder(slot, p, over) {
-  if (p.equip.bar && slot.bar && availIds(slot.bar.l, p).length) return { src: slot.bar, l: slot.bar.l };
-  const cands = [];
-  if (over && over.l) cands.push(over.l);
-  cands.push(slot.l); (slot.alt || []).forEach((a) => cands.push(a));
-  for (let i = 0; i < cands.length; i++) if (LADDERS[cands[i]] && availIds(cands[i], p).length) return { src: slot, l: cands[i] };
+/* Sceglie la scala per uno slot. "used" contiene le scale già presenti nella stessa seduta:
+   lo stesso movimento non viene ripetuto due volte (es. due rematori con zaino). */
+function slotLadder(slot, p, over, used) {
+  used = used || {};
+  if (p.equip.bar && slot.bar && !used[slot.bar.l] && availIds(slot.bar.l, p).length) return { src: slot.bar, l: slot.bar.l };
+  if (over && over.l && LADDERS[over.l] && availIds(over.l, p).length) return { src: slot, l: over.l };
+  const cands = [slot.l].concat(slot.alt || []);
+  for (let i = 0; i < cands.length; i++) if (LADDERS[cands[i]] && !used[cands[i]] && availIds(cands[i], p).length) return { src: slot, l: cands[i] };
   return null;
 }
 function progKey(src, l) { const base = src.pk || src.id; return l === src.l ? base : base + '@' + l; }
@@ -58,9 +60,9 @@ function currentId(key, lad, src, p, st) {
   return snap(lad, clamp(idx, 0, LADDERS[lad].lv.length - 1), p);
 }
 
-function resolveSlot(slot, p, st, wid) {
+function resolveSlot(slot, p, st, wid, used) {
   const over = st.plan.over[slot.id] || {};
-  const pick = slotLadder(slot, p, over); if (!pick) return null;
+  const pick = slotLadder(slot, p, over, used); if (!pick) return null;
   const src = pick.src; const lad = pick.l; const key = progKey(src, lad);
   const x = currentId(key, lad, src, p, st); if (!x) return null;
   const e = EX[x];
@@ -117,7 +119,8 @@ function splitFor(p) { return SPLITS[clamp(p.wdays.length, 2, 4)]; }
 function resolveWorkout(wid, p, st) {
   const W = WORKOUTS[wid];
   const locked = {}; Object.keys(st.plan.over).forEach((k) => { if (st.plan.over[k].sets) locked[k] = 1; });
-  let slots = W.slots.map((s) => resolveSlot(s, p, st, wid)).filter(Boolean);
+  const used = {};
+  let slots = W.slots.map((s) => { const r = resolveSlot(s, p, st, wid, used); if (r) used[r.l] = 1; return r; }).filter(Boolean);
   slots = fitDuration(slots, p.dur, locked);
   slots.forEach((s) => { s.baseSets = s.sets; });
   const mus = {}; slots.forEach((s) => { mus[EX[s.x].m] = 1; });
@@ -236,10 +239,12 @@ function weekBuckets(st, n) {
   }
   return out;
 }
+/* Andamento del peso: serve almeno 3 settimane di dati e 6 misurazioni,
+   così poche pesate (o un giorno di ritenzione) non producono consigli. */
 function weightTrend(st) {
-  const w = st.weights; if (w.length < 4) return null;
-  const last = dayN(w[w.length - 1].d);
+  const w = st.weights; if (w.length < 6) return null;
+  const last = dayN(w[w.length - 1].d); if (last - dayN(w[0].d) < 21) return null;
   const avg = (a, b) => { const xs = w.filter((e) => { const d = last - dayN(e.d); return d >= a && d < b; }).map((e) => e.kg); return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null; };
-  const r = avg(0, 7), q = avg(7, 14); if (r == null || q == null) return null;
-  const diff = r - q; return diff < 0.1 ? 'flat' : diff > 0.5 ? 'fast' : 'ok';
+  const r = avg(0, 7), q = avg(14, 21); if (r == null || q == null) return null;
+  const perWeek = (r - q) / 2; return perWeek < 0.1 ? 'flat' : perWeek > 0.5 ? 'fast' : 'ok';
 }

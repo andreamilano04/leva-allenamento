@@ -45,14 +45,14 @@ function vHome() {
   }
 
   const sw = startWeight(); const pct = p.goal === sw ? 100 : clamp(((cw - sw) / (p.goal - sw)) * 100, 0, 100);
-  const trend = weightTrend(S);
-  const tip = trend === 'flat' ? 'Il peso è fermo da due settimane: aggiungi uno spuntino da circa 300 kcal al giorno (per esempio yogurt greco con frutta secca).'
-    : trend === 'fast' ? 'Stai salendo più di 0,5 kg a settimana: riduci leggermente le porzioni per mettere muscolo e non grasso.'
-    : 'Punta a ' + Math.round(cw * 1.6) + '–' + Math.round(cw * 2) + ' g di proteine al giorno e a un leggero surplus calorico. Pesati 2 volte a settimana, al mattino.';
+  const trend = weightTrend(S); const up = p.goal > sw;
+  const tip = trend === 'flat' && up ? 'Da almeno tre settimane il peso è stabile. Se vuoi aumentare, prova ad aumentare un po’ le porzioni o ad aggiungere uno spuntino, e ricontrolla tra due settimane.'
+    : trend === 'fast' && up ? 'Il peso sta salendo più di mezzo chilo a settimana: se vuoi limitare l’aumento di grasso, puoi rallentare un po’.'
+    : 'Per aumentare la massa servono un leggero surplus calorico e abbastanza proteine: come riferimento generale si indicano spesso 1,6–2,2 g per kg al giorno. Per un piano su misura rivolgiti a un nutrizionista.';
   h += '<div class="sec-h"><h3>Obiettivo peso</h3><button class="link" data-a="weightSheet">+ Registra</button></div>';
   h += '<section class="card"><div class="row" style="margin-bottom:12px"><div class="f"><span class="big-n">' + fmt1(cw) + '<small>kg</small></span></div><div class="muted small" style="text-align:right">obiettivo<br><b style="color:var(--tx)">' + fmt1(p.goal) + ' kg</b></div></div>' +
     '<div class="bar"><i style="width:' + pct.toFixed(0) + '%"></i></div><div class="muted small" style="margin-top:8px">' + (Math.abs(cw - p.goal) < 0.05 ? 'Obiettivo raggiunto!' : (cw < p.goal ? 'Mancano ' : 'Sei sopra di ') + fmt1(Math.abs(p.goal - cw)) + ' kg') + '</div></section>';
-  h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.food + '</span><div class="f"><h4 style="margin-bottom:4px">Alimentazione</h4><p class="muted small">' + esc(tip) + '</p></div></section>';
+  if (S.settings.nutri !== false) h += '<section class="card row" style="align-items:flex-start"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.food + '</span><div class="f"><h4 style="margin-bottom:4px">Alimentazione</h4><p class="muted small">' + esc(tip) + '</p><p class="muted tiny" style="margin-top:6px">Indicazione generale, non personalizzata.' + (trend ? '' : ' I suggerimenti sull’andamento compaiono dopo almeno 3 settimane e 6 pesate.') + '</p></div></section>';
   return h;
 }
 
@@ -155,6 +155,7 @@ function sheetEx(id) {
   let h = '<div class="eyebrow">' + esc(L.name) + (n > 1 ? ' · livello ' + (e.i + 1) + ' di ' + n : '') + '</div><h2 style="margin:6px 0 12px">' + esc(e.n) + '</h2>';
   h += '<div class="tags"><span class="tag ac">' + MUSCLES[e.m] + '</span>' + e.s.map((m) => '<span class="tag">' + MUSCLES[m] + '</span>').join('') + (e.u === 's' ? '<span class="tag">' + ICON.clock + 'a tempo</span>' : '') + (e.r ? '<span class="tag">' + rangeTxt(e.r, e.u) + '</span>' : '') + '</div>';
   h += '<p class="desc">' + esc(e.d) + '</p>';
+  if (e.pre) h += '<div class="safety" style="background:var(--acd);color:var(--tx2)">' + ICON.target.replace('<svg', '<svg style="color:var(--ac)"') + '<span><b style="color:var(--ac)">Prima di iniziare:</b> ' + esc(e.pre) + '</span></div>';
   h += '<div class="sp16"></div><h4 style="margin-bottom:10px">Esecuzione</h4><ol class="steps">' + e.how.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol>';
   h += '<h4 style="margin:16px 0 10px">Errori comuni</h4><ul class="errs">' + e.err.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';
   h += '<h4 style="margin:16px 0 8px">Attrezzatura</h4><p class="muted small">' + (e.eq.length ? e.eq.map((q) => esc(EQUIP[q].n) + (p.equip[q] ? '' : ' (non ce l’hai)')).join(', ') : 'Nessuna: solo corpo libero.') + '</p>';
@@ -175,6 +176,7 @@ function sheetEx(id) {
 }
 function safetyNote(e) {
   if (e.eq.indexOf('table') >= 0) return 'Usa solo un tavolo pesante e stabile. Prima di iniziare tira piano dal bordo: se si solleva o si sposta, scegli il rematore con zaino o con elastico.';
+  if (e.l === 'dip') return 'Esercizio facoltativo e non incluso nelle schede: carica molto le spalle e richiede due sedie identiche, pesanti, senza ruote, appoggiate a un muro o a un mobile. Se qualcosa si muove o senti fastidio alla spalla, usa i piegamenti stretti.';
   if (e.eq.indexOf('chair') >= 0) return 'Sedia senza ruote, appoggiata al muro su un pavimento che non scivola. Non usare sedie pieghevoli o traballanti.';
   if (e.eq.indexOf('sofa') >= 0) return 'Il mobile deve essere pesante e non spostarsi: controllalo prima della prima serie.';
   if (e.eq.indexOf('band') >= 0 && /porta/.test(e.d + e.how.join(' '))) return 'Ancora l’elastico solo a una porta chiusa a chiave, dal lato in cui si chiude, e controlla che non sia consumato.';
@@ -272,7 +274,7 @@ function vProfile() {
   h += '<div class="sec-h"><h3>Attrezzatura</h3></div><section class="card">' + EQUIP_ORDER.map((k) => toggle('eq_' + k, d.equip[k], EQUIP[k].n, EQUIP[k].d, 'pEq')).join('') + '</section>';
   h += '<div class="sec-h"><h3>Zone da proteggere</h3></div><section class="card"><p class="muted small" style="margin-bottom:12px">Gli esercizi che le sollecitano molto vengono sostituiti.</p><div class="tags">' + Object.keys(STRESS).map((k) => '<button class="pill ' + (d.avoid.indexOf(k) >= 0 ? 'on' : '') + '" data-a="pAvoid" data-v="' + k + '">' + STRESS[k] + '</button>').join('') + '</div>' +
     (d.excl.length ? '<div class="sp16"></div><h4 style="margin-bottom:8px">Esercizi esclusi</h4>' + d.excl.filter((x) => EX[x]).map((x) => '<div class="lrow"><div class="f">' + esc(EX[x].n) + '</div><button class="btn ghost xs" data-a="pUnexcl" data-v="' + x + '">Rimetti</button></div>').join('') : '') + '</section>';
-  h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + '</section>';
+  h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + toggle('setNutri', S.settings.nutri !== false, 'Consigli sull’alimentazione', 'Scheda informativa nella schermata Oggi', 'setTog') + '</section>';
   const dirty = JSON.stringify(d) !== JSON.stringify(p);
   h += '<button class="btn primary" data-a="saveProfile" ' + (dirty ? '' : 'disabled') + '>' + (dirty ? 'Salva e aggiorna il programma' : 'Nessuna modifica da salvare') + '</button>';
   if (deferredInstall) h += '<div class="sp10"></div><button class="btn ghost" data-a="install">' + ICON.phone + 'Installa l’app sul telefono</button>';
@@ -366,7 +368,7 @@ function vSummary() {
   const items = sm.items.filter((o) => o.type);
   if (items.length) {
     h += '<section class="card"><h3 style="margin-bottom:12px">Progressione</h3>' + items.map((o, i) => {
-      if (o.type === 'up') return '<div class="up"><span class="letter solid">' + ICON.up + '</span><div class="f"><div class="b">' + esc(o.toName) + '</div><div class="muted small">Prossima volta, al posto di ' + esc(o.name) + '.</div>' + (o.undone ? '<div class="small ac" style="margin-top:6px">Resti a questo livello.</div>' : '<button class="btn ghost xs" style="margin-top:8px" data-a="undoUp" data-v="' + i + '">Tecnica non perfetta? Resta qui</button>') + '</div></div>';
+      if (o.type === 'up') return '<div class="up"><span class="letter solid">' + ICON.up + '</span><div class="f"><div class="b">' + esc(o.toName) + '</div><div class="muted small">Prossima volta, al posto di ' + esc(o.name) + '.' + (EX[o.to].pre ? ' Prima di passare: ' + esc(EX[o.to].pre) : '') + '</div>' + (o.undone ? '<div class="small ac" style="margin-top:6px">Resti a questo livello.</div>' : '<button class="btn ghost xs" style="margin-top:8px" data-a="undoUp" data-v="' + i + '">Tecnica non perfetta? Resta qui</button>') + '</div></div>';
       if (o.type === 'down') return '<div class="up"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.down + '</span><div class="f"><div class="b">' + esc(o.name) + '</div><div class="muted small">' + esc(o.msg) + '</div>' + (o.applied ? '<div class="small ac" style="margin-top:6px">Prossima volta: ' + esc(o.toName) + '.</div>' : '<button class="btn ghost xs" style="margin-top:8px" data-a="applyDown" data-v="' + i + '">Passa a ' + esc(o.toName) + '</button>') + '</div></div>';
       return '<div class="up"><span class="letter gray">' + (o.type === 'max' ? ICON.trophy : ICON.target) + '</span><div class="f"><div class="b">' + esc(o.name) + '</div><div class="muted small">' + esc(o.msg) + '</div></div></div>';
     }).join('') + '</section>';
