@@ -5,7 +5,7 @@
 
 const KEY = 'leva.v2';
 const KEY_V1 = 'leva.v1';
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.3';
 
 function fresh() {
   return { v: 2, profile: null, prog: {}, sessions: [], weights: [], measures: [], active: null,

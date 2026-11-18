@@ -95,8 +95,11 @@ const COMPOUND = ['push_h', 'push_v', 'row', 'row_bp', 'row_band', 'pulldown_ban
 function restFor(lad, pri) {
   if (/^neck_/.test(lad)) return 45;
   if (['core', 'hang_core', 'calf', 'calf_floor', 'shrug_bp'].indexOf(lad) >= 0) return 60;
-  if (COMPOUND.indexOf(lad) >= 0) return 90;
-  return 75;
+  // Multiarticolari 2 minuti, monoarticolari 90 s: oltre i 60 s c'è un piccolo vantaggio per la crescita
+  // (Singer et al. 2024, meta-analisi; Schoenfeld et al. 2016: 3 min > 1 min) perché nelle serie
+  // successive si riescono a fare più ripetizioni vicino al cedimento.
+  if (COMPOUND.indexOf(lad) >= 0) return 120;
+  return 90;
 }
 /* Pausa tra un esercizio e il successivo: almeno 90 s per prepararsi. */
 function restBetween(rest) { return Math.max(rest, 90); }
@@ -114,7 +117,7 @@ function estMin(slots) { return Math.round(slots.reduce((t, s) => t + estSlot(s)
 function fitDuration(slots, dur, locked) {
   const target = dur * 60; const tot = () => slots.reduce((t, s) => t + estSlot(s), 0);
   const free = (s) => !locked[s.slot];
-  const drop = (pri) => { for (let i = slots.length - 1; i >= 0 && tot() > target + 120; i--) if (slots[i].pri === pri && free(slots[i]) && slots.length > 3) slots.splice(i, 1); };
+  const drop = (pri) => { for (let i = slots.length - 1; i >= 0 && tot() > target + 120; i--) if (slots[i].pri === pri && free(slots[i]) && slots.length > 4) slots.splice(i, 1); };
   drop(3);
   for (let i = slots.length - 1; i >= 0 && tot() > target + 120; i--) if (slots[i].sets >= 4 && free(slots[i])) slots[i].sets = 3;
   drop(2);
