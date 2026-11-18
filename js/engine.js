@@ -321,3 +321,17 @@ function buildIcs(p, o, now) {
   L.push('END:VCALENDAR');
   return L.join('\r\n') + '\r\n';
 }
+
+/* Piano su più settimane: allenamenti previsti (a rotazione), fatti, partite e giorni alleggeriti. */
+function calPlan(p, st, weeks) {
+  const ws = weekStart(new Date()); const tk = today(); const order = splitFor(p).order;
+  let nxt = order.indexOf(nextWid(p, st)); const out = [];
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i); const k = dkey(d);
+    const done = st.sessions.filter((s) => s.d === k); const train = p.wdays.indexOf(wdayOf(d)) >= 0;
+    let plan = null; if (train && !done.length && k >= tk) { plan = order[nxt]; nxt = (nxt + 1) % order.length; }
+    const match = isMatchDay(p, k);
+    out.push({ k: k, d: d, i: wdayOf(d), train: train, done: done, plan: plan, today: k === tk, past: k < tk, match: match, light: !!(plan && !match && matchNear(p, k)) });
+  }
+  return out;
+}

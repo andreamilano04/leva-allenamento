@@ -22,6 +22,7 @@ Web app installabile (PWA) per allenarsi a casa a corpo libero: crea un programm
 - Configurazione iniziale: obiettivo (massa, forza, resistenza, forma), livello, giorni (da 2 a 4), durata (30, 45 o 60 minuti), attrezzatura, zone da proteggere, giorni delle partite.
 - Generatore automatico: full body ×2, full body A/B/C oppure parte alta/parte bassa. Sceglie solo esercizi possibili con l'attrezzatura disponibile, non ripete lo stesso movimento nella seduta e adatta il numero di esercizi e di serie alla durata.
 - Volume settimanale per gruppo muscolare, sostituzione degli esercizi, modifica delle serie.
+- Calendario a 4 settimane con allenamenti previsti a rotazione e partite per data (con rinvii): vicino alle partite gli esercizi per le gambe vengono alleggeriti.
 
 **Allenamento**
 - Riscaldamento e defaticamento guidati, con timer.

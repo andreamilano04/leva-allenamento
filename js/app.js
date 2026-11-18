@@ -5,7 +5,8 @@ let S = load();
 let route = 'home';
 let summary = null;
 let ob = null;                 // stato dell'onboarding (non salvato finché non finisce)
-let pdraft = null;             // bozza del profilo in modifica
+let pdraft = null;             // non più usata: il profilo si salva subito
+let lastRoute = null;
 let lib = { q: '', m: '', mine: true, plan: false };
 let pmode = 'n';
 let mmode = 'arm';
@@ -34,11 +35,12 @@ function render() {
   else if (route === 'summary' && summary) html = vSummary();
   else {
     if (route === 'session' || route === 'summary') route = 'home';
-    if (route === 'profile' && !pdraft) pdraft = clone(S.profile);
-    html = ({ home: vHome, plan: vPlan, library: vLibrary, progress: vProgress, profile: vProfile })[route]();
+    html = ({ home: vHome, plan: vPlan, library: vLibrary, progress: vProgress, profile: vProfile, cal: vCal })[route]();
   }
-  const app = $('#app'); app.innerHTML = '<div class="view">' + html + '</div>';
-  $('#tabbar .in').innerHTML = TABS.map((t) => '<button data-a="tab" data-v="' + t[0] + '" class="' + (route === t[0] ? 'on' : '') + '" aria-label="' + t[1] + '"' + (route === t[0] ? ' aria-current="page"' : '') + '>' + ICON[t[2]] + t[1] + '</button>').join('');
+  const same = lastRoute === route && !!S.profile; lastRoute = route; const y = window.scrollY;
+  const app = $('#app'); app.innerHTML = '<div class="view' + (same ? '' : ' enter') + '">' + html + '</div>';
+  if (same) window.scrollTo(0, y);
+  $('#tabbar .in').innerHTML = TABS.map((t) => '<button data-a="tab" data-v="' + t[0] + '" class="' + (route === t[0] || (route === 'cal' && t[0] === 'plan') ? 'on' : '') + '" aria-label="' + t[1] + '"' + (route === t[0] ? ' aria-current="page"' : '') + '>' + ICON[t[2]] + t[1] + '</button>').join('');
   syncHistory();
 }
 function go(r) { if (r !== route) navPush(); if (r !== 'profile') pdraft = null; route = r; render(); window.scrollTo(0, 0); }
@@ -137,7 +139,6 @@ function startRest(ei, si) {
 function setMatch(k, on) {
   const p = S.profile; const a = p.matchDates || (p.matchDates = []); const i = a.indexOf(k);
   if (on && i < 0) a.push(k); if (!on && i >= 0) a.splice(i, 1); a.sort();
-  if (pdraft) pdraft.matchDates = a.slice();
   save();
 }
 
@@ -250,10 +251,11 @@ function toggleDay(arr, i) {
   if (k >= 0) arr.splice(k, 1); else { if (arr.length >= 4) { toast('Massimo 4 giorni a settimana'); return; } arr.push(i); }
   arr.sort();
 }
-function refreshSave() {
-  const b = document.querySelector('[data-a="saveProfile"]'); if (!b || !pdraft) return;
-  const dirty = JSON.stringify(pdraft) !== JSON.stringify(S.profile);
-  b.disabled = !dirty; b.textContent = dirty ? 'Salva e aggiorna il programma' : 'Nessuna modifica da salvare';
+/* Il profilo si salva a ogni modifica; la pagina si aggiorna senza animazione. */
+let commitT = null;
+function commitProfile(programChanged) {
+  save(); render();
+  if (programChanged) { clearTimeout(commitT); commitT = setTimeout(() => toast('Programma aggiornato'), 250); }
 }
 
 /* ---------- Backup ---------- */
@@ -385,7 +387,6 @@ const A = {
   exclToggle: (t) => {
     const id = t.dataset.v; const p = P(); const k = p.excl.indexOf(id);
     if (k >= 0) p.excl.splice(k, 1); else p.excl.push(id);
-    if (pdraft) pdraft.excl = p.excl.slice();
     save(); showSheet('ex', curSheet && curSheet.k === 'ex' ? curSheet.a : { id: id }, { replace: true }); refreshBehind(); toast(k >= 0 ? 'Esercizio rimesso nel programma' : 'Esercizio escluso: il programma usa un’alternativa');
   },
   libMus: (t) => { lib.m = t.dataset.v; render(); },
@@ -414,22 +415,20 @@ const A = {
   delWeight: (t) => { S.weights = S.weights.filter((e) => e.d !== t.dataset.v); save(); closeSheet(); render(); },
 
   /* Profilo */
-  pPick: (t) => { syncInputs(pdraft); const k = { pObj: 'obj', pLevel: 'level', pDur: 'dur' }[t.parentNode.id]; pdraft[k] = k === 'dur' ? +t.dataset.v : t.dataset.v; render(); },
-  dayPick: (t) => {
-    const prof = t.parentNode.id === 'pDays'; const d = prof ? pdraft : ob.d;
-    if (prof) syncInputs(pdraft);
-    toggleDay(d.wdays, +t.dataset.v); render();
-  },
-  pEq: (t) => { syncInputs(pdraft); const k = t.dataset.v.slice(3); pdraft.equip[k] = !pdraft.equip[k]; render(); },
-  pAvoid: (t) => { syncInputs(pdraft); const k = t.dataset.v; const i = pdraft.avoid.indexOf(k); if (i >= 0) pdraft.avoid.splice(i, 1); else pdraft.avoid.push(k); render(); },
-  pUnexcl: (t) => { syncInputs(pdraft); pdraft.excl = pdraft.excl.filter((x) => x !== t.dataset.v); render(); },
-  setTog: (t) => { const k = { setSound: 'sound', setVibrate: 'vibrate', setNutri: 'nutri', setVoice: 'voice', setWarm: 'warm', setCool: 'cool' }[t.dataset.v]; S.settings[k] = S.settings[k] === false; save(); if (k === 'sound' && S.settings.sound) { ensureAudio(); beep(1); } syncInputs(pdraft); render(); },
-  saveProfile: () => {
-    syncInputs(pdraft); const err = validBody(pdraft, false); if (err) return toast(err);
-    if (pdraft.wdays.length < 2) return toast('Scegli almeno 2 giorni di allenamento');
+  pPick: (t) => { const k = { pObj: 'obj', pLevel: 'level', pDur: 'dur' }[t.parentNode.id]; S.profile[k] = k === 'dur' ? +t.dataset.v : t.dataset.v; commitProfile(true); },
+  dayPick: (t) => { toggleDay(ob.d.wdays, +t.dataset.v); render(); },
+  calDay: (t) => {
+    const w = S.profile.wdays; const i = +t.dataset.v;
+    if (w.indexOf(i) >= 0 && w.length <= 2) { clearTimeout(commitT); return toast('Servono almeno 2 giorni di allenamento'); }
     if (S.active) return toast('Termina prima l’allenamento in corso');
-    S.profile = clone(pdraft); save(); toast('Profilo salvato: programma aggiornato'); render();
+    toggleDay(w, i); commitProfile(true);
   },
+
+  pEq: (t) => { const k = t.dataset.v.slice(3); S.profile.equip[k] = !S.profile.equip[k]; commitProfile(true); },
+  pAvoid: (t) => { const a = S.profile.avoid; const k = a.indexOf(t.dataset.v); if (k >= 0) a.splice(k, 1); else a.push(t.dataset.v); commitProfile(true); },
+  pUnexcl: (t) => { S.profile.excl = S.profile.excl.filter((x) => x !== t.dataset.v); commitProfile(true); },
+  setTog: (t) => { const k = { setSound: 'sound', setVibrate: 'vibrate', setNutri: 'nutri', setVoice: 'voice', setWarm: 'warm', setCool: 'cool' }[t.dataset.v]; S.settings[k] = S.settings[k] === false; save(); if (k === 'sound' && S.settings.sound) { ensureAudio(); beep(1); } render(); },
+
   install: async () => { if (!deferredInstall) return; deferredInstall.prompt(); try { await deferredInstall.userChoice; } catch (e) {} deferredInstall = null; render(); },
   export: async () => {
     try {
@@ -494,10 +493,12 @@ const A = {
   deloadLater: () => { S.meta.deloadSnooze = dkey(weekStart(new Date())); save(); render(); },
   /* Partite */
   matchPick: (t) => {
-    const prof = t.parentNode.id === 'pMatch'; const d = prof ? pdraft : ob.d; if (prof) syncInputs(pdraft);
+    const onb = t.parentNode.id === 'obMatch'; const d = onb ? ob.d : S.profile;
     d.match = d.match || []; const i = +t.dataset.v; const k = d.match.indexOf(i);
-    if (k >= 0) d.match.splice(k, 1); else d.match.push(i); d.match.sort(); render();
+    if (k >= 0) d.match.splice(k, 1); else d.match.push(i); d.match.sort();
+    if (onb) render(); else commitProfile(false);
   },
+
   /* Calendario */
   calSheet: () => sheet('<h3 style="margin-bottom:4px">Promemoria nel calendario</h3><p class="muted small" style="margin-bottom:16px">Crea un file da aprire con il calendario del telefono: gli eventi si ripetono da soli, con un avviso 10 minuti prima.</p>' +
     '<div class="field"><label for="calTime">Ora degli allenamenti (' + P().wdays.map((i) => WD[i]).join(', ') + ')</label><input id="calTime" type="time" value="18:30"></div>' +
@@ -612,7 +613,6 @@ function restore(st) {
   if (st.r === 'summary' && !summary) return false;
   if (route === 'session' && st.r !== 'session') { closeOv(); keepAwake(false); }
   if (st.r === 'session' && st.ix != null && S.active) S.active.idx = Math.min(st.ix, S.active.ex.length - 1);
-  if (st.r !== 'profile') pdraft = null;
   route = st.r; curSheet = null; $('#sheet').classList.remove('show');
   render(); window.scrollTo(0, 0);
   if (st.sh && SHEETS[st.sh.k]) { const html = SHEETS[st.sh.k](st.sh.a); if (html) { curSheet = st.sh; openSheet(html); } }
@@ -718,7 +718,16 @@ document.addEventListener('click', (ev) => {
 document.addEventListener('input', (ev) => {
   const t = ev.target;
   if (t.id === 'libQ') { lib.q = t.value; const p = P(); const pr = program(p, S); const inPlan = {}; pr.workouts.forEach((w) => w.slots.forEach((s) => { (inPlan[s.x] = inPlan[s.x] || []).push(w.wid); })); $('#libList').innerHTML = libList(p, inPlan); return; }
-  if (route === 'profile' && pdraft && S.profile && /^f(Name|H|G)$/.test(t.id)) { syncInputs(pdraft); refreshSave(); }
+});
+document.addEventListener('change', (ev) => {
+  const t = ev.target; if (!S.profile) return;
+  if (route === 'profile' && /^f(Name|H|G)$/.test(t.id)) {
+    const d = clone(S.profile); syncInputs(d); const err = validBody(d, false);
+    if (err) { toast(err); render(); return; }
+    S.profile.name = d.name; S.profile.height = d.height; S.profile.goal = Math.round(d.goal * 10) / 10; save(); toast('Salvato');
+    const av = document.querySelector('.page-t .avatar'); if (av) av.textContent = initial(d.name);
+  }
+  if (t.id === 'mDate' && t.value) { setMatch(t.value, true); toast('Partita aggiunta: ' + fmtD(t.value)); render(); }
 });
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && ev.target && ev.target.id === 'fWeight') A.saveWeight();
