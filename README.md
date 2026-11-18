@@ -28,7 +28,8 @@ js/engine.js          programma, scelta degli esercizi, durata, progressione, st
 js/ui.js              icone, grafici SVG, componenti
 js/anim.js            animazioni degli esercizi (omino SVG con cinematica inversa)
 js/views.js           schermate
-js/app.js             azioni, sessione, timer, avvio
+js/app.js             azioni, sessione, timer, navigazione, avvio
+tests/run.js          test automatici (node tests/run.js)
 sw.js                 service worker (cache dei file, mai dei dati)
 ```
 
@@ -58,3 +59,11 @@ python3 -m http.server 8000
 ```
 
 Poi apri http://localhost:8000 (il service worker è attivo anche su localhost).
+
+## Test
+
+```
+node tests/run.js
+```
+
+Nessuna installazione richiesta. I test controllano dati e ID, generatore del programma (attrezzatura, duplicati, durata, volume), progressione, migrazione v1 → v2, validazione dei backup, IMC e animazioni. Da lanciare dopo ogni modifica: se un test fallisce, la modifica ha rotto qualcosa.

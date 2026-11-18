@@ -314,7 +314,8 @@ function vProfile() {
   h += '<div class="sec-h"><h3>Attrezzatura</h3></div><section class="card">' + EQUIP_ORDER.map((k) => toggle('eq_' + k, d.equip[k], EQUIP[k].n, EQUIP[k].d, 'pEq')).join('') + '</section>';
   h += '<div class="sec-h"><h3>Zone da proteggere</h3></div><section class="card"><p class="muted small" style="margin-bottom:12px">Gli esercizi che le sollecitano molto vengono sostituiti.</p><div class="tags">' + Object.keys(STRESS).map((k) => '<button class="pill ' + (d.avoid.indexOf(k) >= 0 ? 'on' : '') + '" data-a="pAvoid" data-v="' + k + '">' + STRESS[k] + '</button>').join('') + '</div>' +
     (d.excl.length ? '<div class="sp16"></div><h4 style="margin-bottom:8px">Esercizi esclusi</h4>' + d.excl.filter((x) => EX[x]).map((x) => '<div class="lrow"><div class="f">' + esc(EX[x].n) + '</div><button class="btn ghost xs" data-a="pUnexcl" data-v="' + x + '">Rimetti</button></div>').join('') : '') + '</section>';
-  h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + toggle('setNutri', S.settings.nutri !== false, 'Consigli sull’alimentazione', 'Scheda informativa nella schermata Oggi', 'setTog') + '</section>';
+  h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + toggle('setNutri', S.settings.nutri !== false, 'Consigli sull’alimentazione', 'Scheda informativa nella schermata Oggi', 'setTog') + '</section>' +
+    '<button class="item" data-a="safetyShow"><span class="letter">' + ICON.heart + '</span><div class="f"><div class="t">Avvertenze di sicurezza</div><div class="s">Quando fermarti, cosa controllare</div></div><span class="chev">' + ICON.chevR + '</span></button>';
   const dirty = JSON.stringify(d) !== JSON.stringify(p);
   h += '<button class="btn primary" data-a="saveProfile" ' + (dirty ? '' : 'disabled') + '>' + (dirty ? 'Salva e aggiorna il programma' : 'Nessuna modifica da salvare') + '</button>';
   if (deferredInstall) h += '<div class="sp10"></div><button class="btn ghost" data-a="install">' + ICON.phone + 'Installa l’app sul telefono</button>';
@@ -356,6 +357,8 @@ function vOnboard() {
     const tmp = Object.assign(fresh(), { profile: d }); const pr = program(d, tmp);
     h += '<h1>Il tuo programma è pronto</h1><p class="muted" style="margin:8px 0 22px">' + esc(pr.name) + ' · ' + d.wdays.map((i) => WD[i]).join(', ') + ' · ~' + d.dur + ' min</p>' +
       pr.workouts.map((w) => '<div class="item"><span class="letter solid">' + esc(w.wid) + '</span><div class="f"><div class="t">' + esc(w.name) + '</div><div class="s">' + w.slots.length + ' esercizi · ' + w.sets + ' serie · ~' + w.min + ' min</div><div class="s">' + w.slots.slice(0, 3).map((s) => esc(EX[s.x].n)).join(', ') + '…</div></div></div>').join('');
+    h += '<div class="sp16"></div><section class="card"><h4 style="margin-bottom:8px">Prima di iniziare</h4><p class="muted small">' + esc(SAFETY[0][2]) + ' ' + esc(SAFETY[1][2]) + ' ' + esc(SAFETY[2][2]) + '</p></section>' +
+      '<button class="opt ' + (ob.safe ? 'on' : '') + '" data-a="obSafe"><div class="f"><b>Ho letto e ho capito</b><span class="muted small">Mi alleno sotto la mia responsabilità e mi fermo se sento dolore.</span></div><span class="ck">' + ICON.check + '</span></button>';
   }
   const last = st === OB_STEPS - 1;
   h += '<div class="foot"><div class="in"><button class="btn primary" data-a="' + (last ? 'obFinish' : 'obNext') + '">' + (last ? 'Inizia con Leva' : 'Continua') + '</button></div></div>';
@@ -416,4 +419,18 @@ function vSummary() {
   } else h += '<p class="muted small center" style="margin:6px 10px 18px">Quando completi tutte le serie al massimo del range con un po’ di margine, l’esercizio passa al livello successivo.</p>';
   h += '<div class="foot"><div class="in"><button class="btn primary" data-a="tab" data-v="home">Fatto</button></div></div>';
   return h;
+}
+
+/* ---------- Avvertenze di sicurezza ---------- */
+const SAFETY = [
+  ['info', 'Non è un parere medico', 'Leva dà indicazioni generali di allenamento. Non sostituisce medico, fisioterapista o nutrizionista.'],
+  ['heart', 'Prima di iniziare', 'Se hai problemi di cuore o di pressione, infortuni recenti, dolori alle articolazioni o dubbi sulla tua salute, parlane prima con un medico.'],
+  ['warn', 'Quando fermarti', 'Fatica e bruciore muscolare sono normali. Fermati subito se senti dolore acuto o alle articolazioni, dolore al petto, giramenti di testa o fiato corto insolito; se non passa, contatta un medico.'],
+  ['target', 'Tecnica prima del carico', 'Sali di livello solo con una tecnica pulita. Usa mobili pesanti e stabili, elastici integri e ancorati a una porta chiusa a chiave.'],
+  ['scale', 'Numeri indicativi', 'IMC, stime di durata e consigli sull’alimentazione sono riferimenti generali, non valutazioni personali.']
+];
+function safetyHtml(withButton) {
+  return '<div class="letter solid" style="width:56px;height:56px;border-radius:18px;margin-bottom:16px">' + ICON.heart + '</div><h2>Allenati in sicurezza</h2><p class="muted" style="margin:8px 0 16px">Poche regole da tenere a mente.</p>' +
+    SAFETY.map((x) => '<div class="lrow" style="align-items:flex-start"><span class="letter gray" style="width:38px;height:38px;border-radius:13px">' + ICON[x[0]] + '</span><div class="f"><div class="t">' + esc(x[1]) + '</div><div class="muted small">' + esc(x[2]) + '</div></div></div>').join('') +
+    '<div class="sp16"></div>' + (withButton ? '<button class="btn primary" data-a="safetyOk">Ho capito</button>' : '<button class="btn ghost" data-a="navBack">Chiudi</button>');
 }

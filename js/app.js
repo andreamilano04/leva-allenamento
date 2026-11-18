@@ -402,7 +402,10 @@ const A = {
   bmiInfo: () => sheet('<h3 style="margin-bottom:8px">Cos’è l’IMC</h3><p class="muted small" style="margin-bottom:12px">L’indice di massa corporea è il peso in chilogrammi diviso per il quadrato dell’altezza in metri. Per esempio: 65,5 kg e 1,75 m danno 65,5 ÷ (1,75 × 1,75) = 21,4.</p>' +
     '<section class="card">' + [['Sotto 18,5', 'Sottopeso'], ['18,5 – 24,9', 'Normopeso'], ['25 – 29,9', 'Sovrappeso'], ['30 e oltre', 'Obesità']].map((r) => '<div class="lrow"><div class="f">' + r[1] + '</div><b>' + r[0] + '</b></div>').join('') + '</section>' +
     '<p class="muted small">È solo un indicatore di massima: non distingue muscoli e grasso. Chi è molto muscoloso può avere un IMC alto pur essendo magro, quindi va letto insieme a come ti senti, alla forza e alla circonferenza vita. Le fasce valgono per gli adulti.</p>'),
-  newsOk: () => { S.meta.news = false; save(); closeSheet(); },
+  safetyOk: () => { S.meta.safety = true; save(); closeSheet(); },
+  safetyShow: () => sheet(safetyHtml(false)),
+  obSafe: () => { ob.safe = !ob.safe; render(); },
+  newsOk: () => { S.meta.news = false; save(); closeSheet(); if (!S.meta.safety) openSheet(safetyHtml(true)); },
   newsProfile: () => { S.meta.news = false; save(); closeSheet(); go('profile'); },
 
   /* Onboarding */
@@ -419,8 +422,9 @@ const A = {
   obEq: (t) => { const k = t.dataset.v.slice(3); ob.d.equip[k] = !ob.d.equip[k]; render(); },
   obAvoid: (t) => { const a = ob.d.avoid; const k = a.indexOf(t.dataset.v); if (k >= 0) a.splice(k, 1); else a.push(t.dataset.v); render(); },
   obFinish: () => {
+    if (!ob.safe) return toast('Conferma di aver letto le avvertenze di sicurezza');
     const d = ob.d; d.weight = Math.round(d.weight * 10) / 10; d.goal = Math.round(d.goal * 10) / 10;
-    S.profile = clone(d); S.weights = [{ d: today(), kg: d.weight }]; ob = null; save(); go('home');
+    S.profile = clone(d); S.weights = [{ d: today(), kg: d.weight }]; S.meta.safety = true; ob = null; save(); go('home');
     toast('Benvenuto in Leva' + (d.name ? ', ' + d.name : '') + '!');
   }
 };
@@ -573,6 +577,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 /* ---------- Avvio ---------- */
 render();
 if (S.active) { route = 'session'; render(); restoreTimer(); keepAwake(!S.active.pausedAt); }
+if (S.profile && S.meta && !S.meta.news && !S.meta.safety) openSheet(safetyHtml(true));
 if (S.profile && S.meta && S.meta.news) {
   const p = S.profile;
   openSheet('<div class="letter solid" style="width:56px;height:56px;border-radius:18px;margin-bottom:16px">' + ICON.bolt + '</div><h2>Benvenuto in Leva 2.0</h2><p class="muted" style="margin:8px 0 16px">Abbiamo trasferito tutti i tuoi dati: ' + plural(S.sessions.length, 'allenamento', 'allenamenti') + ', ' + plural(S.weights.length, 'misurazione', 'misurazioni') + ' del peso e i livelli raggiunti.</p>' +
