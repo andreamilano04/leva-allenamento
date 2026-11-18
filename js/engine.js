@@ -257,3 +257,61 @@ function bmiCat(v) {
   if (v < 30) return { n: 'Sovrappeso', cls: 'or' };
   return { n: 'Obesità', cls: 'or' };
 }
+
+/* ---------- Riscaldamento e defaticamento ----------
+   Gli esercizi "per lato" diventano due passi (destro e sinistro). */
+function routineSteps(kind) {
+  const out = [];
+  (kind === 'warm' ? WARMUP : COOLDOWN).forEach((m) => {
+    if (m.side) { out.push({ id: m.id, side: 'destro' }); out.push({ id: m.id, side: 'sinistro' }); } else out.push({ id: m.id });
+  });
+  return out;
+}
+function routineMove(id) { return WARMUP.concat(COOLDOWN).find((m) => m.id === id); }
+function routineMin(kind) { return Math.round(routineSteps(kind).reduce((t, s) => t + routineMove(s.id).s, 0) / 60); }
+
+/* ---------- Partite (calcio o altro sport) ----------
+   Restituisce 'oggi', 'ieri', 'domani' o null per la data indicata. */
+function matchNear(p, k) {
+  const m = p.match || []; if (!m.length) return null;
+  const w = wdayOf(parseD(k));
+  if (m.indexOf(w) >= 0) return 'oggi';
+  if (m.indexOf((w + 6) % 7) >= 0) return 'ieri';
+  if (m.indexOf((w + 1) % 7) >= 0) return 'domani';
+  return null;
+}
+
+/* ---------- Settimana di scarico ----------
+   Dopo 6 settimane di fila "piene" (almeno target − 1 allenamenti) dall'ultimo scarico,
+   propone una settimana con una serie in meno e senza salite di livello. */
+function deloadStatus(p, st, now) {
+  const ws = dkey(weekStart(now || new Date())); const m = st.meta || {};
+  if (m.deloadWeek === ws) return { active: true, due: false, weeks: 0 };
+  const target = Math.max(1, p.wdays.length - 1); const counts = {};
+  st.sessions.forEach((s) => { const k = dkey(weekStart(parseD(s.d))); counts[k] = (counts[k] || 0) + 1; });
+  const w = weekStart(now || new Date()); w.setDate(w.getDate() - 7); let n = 0;
+  while ((counts[dkey(w)] || 0) >= target && dkey(w) !== m.lastDeload) { n++; w.setDate(w.getDate() - 7); }
+  return { active: false, due: n >= 6 && m.deloadSnooze !== ws, weeks: n };
+}
+
+/* ---------- Promemoria nel calendario (.ics) ---------- */
+const ICS_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+function buildIcs(p, o, now) {
+  now = now || new Date();
+  const z = (n) => String(n).padStart(2, '0');
+  const stamp = now.getUTCFullYear() + z(now.getUTCMonth() + 1) + z(now.getUTCDate()) + 'T' + z(now.getUTCHours()) + z(now.getUTCMinutes()) + '00Z';
+  const firstOn = (days, hhmm) => { // primo giorno (da oggi) tra quelli indicati, all'ora indicata
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    for (let i = 0; i < 8; i++) { if (days.indexOf(wdayOf(d)) >= 0) break; d.setDate(d.getDate() + 1); }
+    return d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + 'T' + hhmm.replace(':', '') + '00';
+  };
+  const ev = (uid, title, start, dur, rrule, desc) => ['BEGIN:VEVENT', 'UID:' + uid + '@leva-allenamento', 'DTSTAMP:' + stamp, 'DTSTART:' + start, 'DURATION:PT' + dur + 'M', 'RRULE:' + rrule, 'SUMMARY:' + title, 'DESCRIPTION:' + desc,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + title, 'TRIGGER:-PT10M', 'END:VALARM', 'END:VEVENT'];
+  let L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Leva//Allenamento//IT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  L = L.concat(ev('allenamento', 'Allenamento Leva', firstOn(p.wdays, o.time), p.dur + 10, 'FREQ=WEEKLY;BYDAY=' + p.wdays.map((i) => ICS_DAYS[i]).join(','), 'Apri Leva e inizia l\'allenamento di oggi.'));
+  if (o.weigh) L = L.concat(ev('pesata', 'Pesata (Leva)', firstOn([0, 3], o.weighTime || '08:00'), 5, 'FREQ=WEEKLY;BYDAY=MO,TH', 'Al mattino, a digiuno, poi registra il peso in Leva.'));
+  if (o.measures) L = L.concat(ev('misure', 'Misure del corpo (Leva)', firstOn([6], '09:00'), 10, 'FREQ=WEEKLY;INTERVAL=3;BYDAY=SU', 'Braccio, petto, vita e coscia: registrale in Leva.'));
+  if (o.backup) L = L.concat(ev('backup', 'Backup dei dati di Leva', firstOn([6], '20:00'), 5, 'FREQ=MONTHLY;BYDAY=1SU', 'Profilo, Salva backup.'));
+  L.push('END:VCALENDAR');
+  return L.join('\r\n') + '\r\n';
+}

@@ -8,6 +8,7 @@ let ob = null;                 // stato dell'onboarding (non salvato finché non
 let pdraft = null;             // bozza del profilo in modifica
 let lib = { q: '', m: '', mine: true, plan: false };
 let pmode = 'n';
+let mmode = 'arm';
 let deferredInstall = null;
 let pendingImport = null;
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -56,6 +57,15 @@ function beep(n) {
     }
   } catch (e) {}
 }
+/* Guida vocale (sintesi del telefono, in italiano). */
+function say(text) {
+  try {
+    if (S.settings.voice === false || !window.speechSynthesis) return false;
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'it-IT'; u.rate = 1.05;
+    const v = speechSynthesis.getVoices().find((x) => /^it/i.test(x.lang)); if (v) u.voice = v;
+    speechSynthesis.speak(u); return true;
+  } catch (e) { return false; }
+}
 function buzz(p) { try { if (S.settings.vibrate && navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 let wake = null;
 async function keepAwake(on) {
@@ -99,12 +109,13 @@ function tickOv() {
     const left = Math.max(0, Math.ceil((ov.end - Date.now()) / 1000));
     if (t) t.textContent = mmss(left);
     if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - left / ov.total)).toFixed(1));
-    if (left <= 0) { buzz([200, 100, 200]); beep(3); closeOv(); toast('Recupero finito: prossima serie!'); render(); }
+    if (left > 0 && left <= 3 && ov.said !== left) { ov.said = left; say(['', 'uno', 'due', 'tre'][left]); }
+    if (left <= 0) { buzz([200, 100, 200]); if (!say('Via!')) beep(3); closeOv(); toast('Recupero finito: prossima serie!'); render(); }
   } else if (ov.mode === 'hold') {
     const el = Math.floor((Date.now() - ov.start) / 1000);
     if (t) t.textContent = el;
     if (ring) ring.setAttribute('stroke-dashoffset', (RING * (1 - Math.min(1, el / ov.target))).toFixed(1));
-    if (el >= ov.target && !ov.beeped) { ov.beeped = true; buzz([200]); beep(2); }
+    if (el >= ov.target && !ov.beeped) { ov.beeped = true; buzz([200]); if (!say('Tempo!')) beep(2); }
   } else if (ov.mode === 'pause') {
     if (t && S.active && S.active.pausedAt) t.textContent = mmss((Date.now() - S.active.pausedAt) / 1000);
   }
@@ -119,6 +130,41 @@ function startRest(ei, si) {
   const total = e.rest; const end = Date.now() + total * 1000;
   a.timer = { end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX }; save();
   openOv({ mode: 'rest', end: end, total: total, ei: ei, si: si, nextLbl: nextLbl, next: next, nextX: nextX });
+  if (nextX) say('Recupero. Prossimo esercizio: ' + next);
+}
+
+/* ---------- Riscaldamento / defaticamento ---------- */
+function rtBegin(kind) {
+  const a = S.active; a.phase = kind; a.rt = { kind: kind, steps: routineSteps(kind), i: 0, end: null, left: 0, total: 0 };
+  rtStep(0, true);
+}
+function rtStep(i, first) {
+  const r = S.active.rt; const st = r.steps[i]; const m = routineMove(st.id);
+  r.i = i; r.total = m.s; r.end = Date.now() + m.s * 1000; r.left = m.s; r.said = null; save(); render(); window.scrollTo(0, 0);
+  say((first ? (r.kind === 'warm' ? 'Riscaldamento. ' : 'Defaticamento. ') : '') + m.n + (st.side ? ', lato ' + st.side : ''));
+}
+function rtLeft() { const r = S.active && S.active.rt; if (!r) return 0; return r.end ? Math.max(0, (r.end - Date.now()) / 1000) : r.left; }
+function rtDone() {
+  const a = S.active; if (!a || !a.rt) return;
+  if (a.rt.kind === 'warm') { a.phase = 'main'; a.rt = null; save(); render(); window.scrollTo(0, 0); say('Iniziamo! Primo esercizio: ' + EX[a.ex[a.idx].x].n); }
+  else { a.rt = null; a.phase = 'main'; finishSession(); }
+}
+function rtTick() {
+  const a = S.active; if (!a || !a.rt || route !== 'session' || a.pausedAt || ov) return;
+  const r = a.rt; if (!r.end) return;
+  const left = rtLeft(); const t = document.getElementById('rtT'); const ring = document.getElementById('rtRing');
+  if (t) t.textContent = Math.ceil(left); if (ring) ring.setAttribute('stroke-dashoffset', (282.74 * (1 - left / r.total)).toFixed(1));
+  const c = Math.ceil(left); if (c > 0 && c <= 3 && r.said !== c) { r.said = c; if (!say(['', 'uno', 'due', 'tre'][c])) beep(1); }
+  if (left <= 0) { buzz([150]); if (r.i + 1 >= r.steps.length) rtDone(); else rtStep(r.i + 1); }
+}
+setInterval(rtTick, 250);
+/* Fine della parte principale: defaticamento (se attivo) e poi riepilogo. */
+function endMain() {
+  closeOv();
+  const a = S.active; if (!a) return;
+  if (a.phase === 'cool') { rtDone(); return; }
+  const any = a.ex.some((e) => e.sets.some((q) => q.done));
+  if (any && S.settings.cool !== false) rtBegin('cool'); else finishSession();
 }
 
 /* ---------- Sessione ---------- */
@@ -126,17 +172,20 @@ const LEGS = ['qua', 'fem', 'glu', 'pol'];
 function startSession(wid, check) {
   const p = P(); const W = resolveWorkout(wid, p, S);
   if (!W.slots.length) { toast('Nessun esercizio disponibile con la tua attrezzatura'); return; }
+  const deload = deloadStatus(p, S).active;
   const ex = W.slots.map((s) => {
     let n = s.sets; const notes = [];
     if (check.energy === 'low' && n >= 3) { n -= 1; notes.push('energia bassa'); }
-    if (check.legs && LEGS.indexOf(EX[s.x].m) >= 0 && n >= 3) { n -= 1; notes.push('gambe stanche'); }
+    if (check.legs && LEGS.indexOf(EX[s.x].m) >= 0 && n >= 3) { n -= 1; notes.push(check.match ? 'partita ' + check.match : 'gambe stanche'); }
+    if (deload && n >= 3) { n -= 1; notes.push('settimana di scarico'); }
     const pr = S.prog[s.key]; const last = pr && pr.id === s.x && pr.last ? pr.last : null;
     return { slot: s.slot, id: s.id, key: s.key, l: s.l, x: s.x, r: s.r, rSlot: s.rSlot, rest: s.rest, side: s.side, note: s.note, u: s.u,
       load: pr && pr.load ? pr.load : null, adapt: notes.length ? 'Adattato oggi: ' + plural(s.sets - n, 'serie', 'serie') + ' in meno (' + notes.join(', ') + ')' : '',
       sets: Array.from({ length: n }, (_, k) => ({ v: last && last[k] != null ? last[k] : s.r[0], done: false, rir: null })) };
   });
-  S.active = { wid: wid, wname: W.name, start: Date.now(), pausedMs: 0, pausedAt: null, idx: 0, check: check, ex: ex, timer: null };
+  S.active = { wid: wid, wname: W.name, start: Date.now(), pausedMs: 0, pausedAt: null, idx: 0, check: check, ex: ex, timer: null, deload: deload, phase: 'main', rt: null };
   save(); keepAwake(true); closeSheet(); go('session');
+  if (S.settings.warm !== false) rtBegin('warm'); else say('Primo esercizio: ' + EX[ex[0].x].n);
 }
 function curEx() { return S.active.ex[S.active.idx]; }
 
@@ -149,6 +198,7 @@ function finishSession() {
     if (e.u !== 's') done.forEach((s) => { vol += s.v; if (e.load) kg += s.v * e.load * (e.side ? 2 : 1); });
     const best = Math.max.apply(null, done.map((s) => s.v)); const old = bestSet(e.x, S);
     if (old > 0 && best > old) recs.push({ name: EX[e.x].n, v: best, old: old, u: e.u });
+    if (a.deload) { S.prog[e.key] = Object.assign({ hits: 0, low: 0 }, S.prog[e.key] || {}, { id: e.x, last: e.sets.map((q) => (q.done ? q.v : null)) }); return; }
     const ev = evaluate(e, P(), S);
     if (ev) { S.prog[e.key] = ev.np; ev.out.key = e.key; ev.out.reps = ev.np.last || e.sets.map((s) => (s.done ? s.v : null)); items.push(ev.out); }
   });
@@ -166,8 +216,9 @@ function finishSession() {
     if (common) { const d = now - then; cmp = 'Sugli esercizi in comune con il ' + fmtD(q.d) + ': ' + (d > 0 ? '+' + d + ' ripetizioni' : d < 0 ? d + ' ripetizioni' : 'stesse ripetizioni') + '.'; }
     break;
   }
-  S.sessions.push(sess); S.active = null; save();
-  summary = { s: sess, items: items, recs: recs, cmp: cmp, planned: a.ex.reduce((t, e) => t + e.sets.length, 0), nex: a.ex.length };
+  if (a.deload) sess.deload = true;
+  S.sessions.push(sess); S.active = null; save(); say('Allenamento completato. Ottimo lavoro!');
+  summary = { deload: !!a.deload, s: sess, items: items, recs: recs, cmp: cmp, planned: a.ex.reduce((t, e) => t + e.sets.length, 0), nex: a.ex.length };
   go('summary');
 }
 
@@ -212,10 +263,11 @@ const A = {
   /* Avvio */
   start: (t) => {
     if (S.active) { closeSheet(); return go('session'); }
-    const wid = t.dataset.v;
+    const wid = t.dataset.v; const mn = matchNear(P(), today());
     sheet('<h3>Come stai oggi?</h3><p class="muted small" style="margin:6px 0 18px">Leva adatta l’allenamento alla giornata. Puoi saltare questo passaggio.</p>' +
       '<div class="field"><label>Energia</label>' + seg('ckEnergy', [['low', 'Bassa'], ['ok', 'Normale'], ['high', 'Alta']], 'ok', 'segPick') + '</div>' +
-      '<section class="card" style="padding:4px 16px">' + toggle('ckLegs', false, 'Gambe stanche', 'Per esempio dopo una partita di calcio: una serie in meno sugli esercizi per le gambe', 'tog') + '</section>' +
+      (mn ? '<p class="small" style="margin:0 4px 10px;color:var(--ac)">⚽ Partita ' + mn + ': ho già selezionato “gambe stanche”.</p>' : '') +
+      '<section class="card" style="padding:4px 16px">' + toggle('ckLegs', !!mn, 'Gambe stanche', 'Per esempio dopo una partita di calcio: una serie in meno sugli esercizi per le gambe', 'tog') + '</section>' +
       '<button class="btn primary" data-a="go" data-v="' + wid + '">' + ICON.play + 'Inizia · ' + esc(WORKOUTS[wid].name) + '</button>');
   },
   segPick: (t) => { t.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === t)); },
@@ -223,7 +275,8 @@ const A = {
   go: (t) => {
     ensureAudio();
     const e = document.querySelector('#ckEnergy .on'); const legs = document.getElementById('ckLegs');
-    startSession(t.dataset.v, { energy: e ? e.dataset.v : 'ok', legs: !!(legs && legs.classList.contains('on')) });
+    const lg = !!(legs && legs.classList.contains('on')); const mn = matchNear(P(), today());
+    startSession(t.dataset.v, { energy: e ? e.dataset.v : 'ok', legs: lg, match: lg && mn ? mn : null });
   },
   resume: () => { closeSheet(); keepAwake(true); go('session'); restoreTimer(); },
 
@@ -249,7 +302,7 @@ const A = {
   },
   restSkip: () => { closeOv(); render(); },
   ovClose: () => { closeOv(); render(); },
-  finishFromOv: () => { closeOv(); finishSession(); },
+  finishFromOv: () => { closeOv(); endMain(); },
   holdStart: (t) => { ensureAudio(); const e = curEx(); const i = +t.dataset.s; openOv({ mode: 'hold', start: Date.now(), target: Math.max(5, e.sets[i].v), ei: S.active.idx, si: i }); },
   holdStop: () => {
     if (!ov || ov.mode !== 'hold') return; const o = ov; const el = Math.round((Date.now() - o.start) / 1000);
@@ -271,6 +324,7 @@ const A = {
     const a = S.active; if (!a || !a.pausedAt) { closeOv(); return; }
     const d = Date.now() - a.pausedAt; a.pausedMs = (a.pausedMs || 0) + d; a.pausedAt = null;
     if (a.timer) a.timer.end += d;
+    if (a.rt && a.rt.end) a.rt.end += d;
     save(); closeOv(); keepAwake(true); render(); restoreTimer();
   },
   sessMenu: () => sheet('<h3 style="margin-bottom:6px">Allenamento in corso</h3><p class="muted small" style="margin-bottom:18px">Le serie fatte sono già salvate: puoi uscire e riprendere più tardi dalla schermata Oggi.</p>' +
@@ -284,10 +338,10 @@ const A = {
   discard: () => { closeSheet(); stopAll(); S.active = null; save(); toast('Allenamento annullato'); go('home'); },
   finishAsk: () => {
     const a = S.active; const d = a.ex.reduce((t, e) => t + e.sets.filter((s) => s.done).length, 0); const all = a.ex.reduce((t, e) => t + e.sets.length, 0);
-    if (d === all) { closeSheet(); finishSession(); return; }
+    if (d === all) { closeSheet(); endMain(); return; }
     sheet('<h3 style="margin-bottom:6px">Terminare adesso?</h3><p class="muted small" style="margin-bottom:18px">Hai completato ' + d + ' serie su ' + all + '. Verranno salvate solo quelle fatte' + (d ? '' : ': nessuna, quindi l’allenamento non sarà registrato') + '.</p><button class="btn primary" data-a="finish">Termina e salva</button><div class="sp10"></div><button class="btn ghost" data-a="closeSheet">Continua l’allenamento</button>');
   },
-  finish: () => { closeSheet(); finishSession(); },
+  finish: () => { closeSheet(); endMain(); },
   undoUp: (t) => {
     const o = summary.items.filter((x) => x.type)[+t.dataset.v]; if (!o || o.undone) return;
     S.prog[o.key] = Object.assign({}, S.prog[o.key], { id: o.from, last: o.reps || null, hits: 0 });
@@ -361,7 +415,7 @@ const A = {
   pEq: (t) => { syncInputs(pdraft); const k = t.dataset.v.slice(3); pdraft.equip[k] = !pdraft.equip[k]; render(); },
   pAvoid: (t) => { syncInputs(pdraft); const k = t.dataset.v; const i = pdraft.avoid.indexOf(k); if (i >= 0) pdraft.avoid.splice(i, 1); else pdraft.avoid.push(k); render(); },
   pUnexcl: (t) => { syncInputs(pdraft); pdraft.excl = pdraft.excl.filter((x) => x !== t.dataset.v); render(); },
-  setTog: (t) => { const k = { setSound: 'sound', setVibrate: 'vibrate', setNutri: 'nutri' }[t.dataset.v]; S.settings[k] = S.settings[k] === false; save(); if (k === 'sound' && S.settings.sound) { ensureAudio(); beep(1); } syncInputs(pdraft); render(); },
+  setTog: (t) => { const k = { setSound: 'sound', setVibrate: 'vibrate', setNutri: 'nutri', setVoice: 'voice', setWarm: 'warm', setCool: 'cool' }[t.dataset.v]; S.settings[k] = S.settings[k] === false; save(); if (k === 'sound' && S.settings.sound) { ensureAudio(); beep(1); } syncInputs(pdraft); render(); },
   saveProfile: () => {
     syncInputs(pdraft); const err = validBody(pdraft, false); if (err) return toast(err);
     if (pdraft.wdays.length < 2) return toast('Scegli almeno 2 giorni di allenamento');
@@ -369,14 +423,21 @@ const A = {
     S.profile = clone(pdraft); save(); toast('Profilo salvato: programma aggiornato'); render();
   },
   install: async () => { if (!deferredInstall) return; deferredInstall.prompt(); try { await deferredInstall.userChoice; } catch (e) {} deferredInstall = null; render(); },
-  export: () => {
+  export: async () => {
     try {
       const data = Object.assign({}, S, { exportedAt: new Date().toISOString(), app: 'leva', appVersion: APP_VERSION });
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob); const a = document.createElement('a');
-      a.href = url; a.download = 'leva-backup-' + today() + '.json'; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500); toast('Backup esportato');
-    } catch (e) { toast('Esportazione non riuscita'); }
+      const name = 'leva-backup-' + today() + '.json'; const json = JSON.stringify(data, null, 2);
+      let shared = false;
+      try {
+        const f = new File([json], name, { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [f] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({ files: [f], title: 'Backup di Leva' }); shared = true; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+      if (!shared) {
+        const url = URL.createObjectURL(new Blob([json], { type: 'application/json' })); const a = document.createElement('a');
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+      S.meta.lastBackup = today(); save(); toast('Backup salvato'); render();
+    } catch (e) { toast('Salvataggio del backup non riuscito'); }
   },
   import: () => {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
@@ -405,6 +466,48 @@ const A = {
   safetyOk: () => { S.meta.safety = true; save(); closeSheet(); },
   safetyShow: () => sheet(safetyHtml(false)),
   obSafe: () => { ob.safe = !ob.safe; render(); },
+  /* Riscaldamento / defaticamento */
+  rtGo: (t) => { const r = S.active.rt; const n = r.i + +t.dataset.v; if (n < 0) return; if (n >= r.steps.length) rtDone(); else rtStep(n); },
+  rtToggle: () => { const r = S.active.rt; if (r.end) { r.left = Math.max(0, (r.end - Date.now()) / 1000); r.end = null; } else { r.end = Date.now() + (r.left || 1) * 1000; } save(); render(); },
+  rtSkip: () => rtDone(),
+  /* Misure */
+  measureSheet: () => sheet(sheetMeasures()),
+  saveMeasures: () => {
+    const o = { d: today() }; let n = 0, bad = false;
+    MEASURES.forEach((x) => { const el = $('#m_' + x[0]); const v = parseFloat(String(el && el.value || '').replace(',', '.')); if (el && el.value.trim()) { if (v >= 15 && v <= 200) { o[x[0]] = Math.round(v * 10) / 10; n++; } else bad = true; } });
+    if (bad) return toast('Controlla i valori: tra 15 e 200 cm');
+    if (!n) return toast('Inserisci almeno una misura');
+    S.measures = S.measures.filter((m) => m.d !== o.d); S.measures.push(o); S.measures.sort((a, b) => (a.d < b.d ? -1 : 1));
+    save(); closeSheet(); toast('Misure salvate'); render();
+  },
+  mMode: (t) => { mmode = t.dataset.v; render(); },
+  /* Scarico */
+  deloadYes: () => { const w = dkey(weekStart(new Date())); S.meta.deloadWeek = w; S.meta.lastDeload = w; save(); toast('Settimana di scarico attiva'); render(); },
+  deloadLater: () => { S.meta.deloadSnooze = dkey(weekStart(new Date())); save(); render(); },
+  /* Partite */
+  matchPick: (t) => {
+    const prof = t.parentNode.id === 'pMatch'; const d = prof ? pdraft : ob.d; if (prof) syncInputs(pdraft);
+    d.match = d.match || []; const i = +t.dataset.v; const k = d.match.indexOf(i);
+    if (k >= 0) d.match.splice(k, 1); else d.match.push(i); d.match.sort(); render();
+  },
+  /* Calendario */
+  calSheet: () => sheet('<h3 style="margin-bottom:4px">Promemoria nel calendario</h3><p class="muted small" style="margin-bottom:16px">Crea un file da aprire con il calendario del telefono: gli eventi si ripetono da soli, con un avviso 10 minuti prima.</p>' +
+    '<div class="field"><label for="calTime">Ora degli allenamenti (' + P().wdays.map((i) => WD[i]).join(', ') + ')</label><input id="calTime" type="time" value="18:30"></div>' +
+    '<section class="card" style="padding:4px 16px">' + toggle('calWeigh', true, 'Pesate', 'Lunedì e giovedì alle 8:00', 'tog') + toggle('calMeas', true, 'Misure del corpo', 'Ogni 3 settimane, la domenica', 'tog') + toggle('calBackup', true, 'Backup dei dati', 'La prima domenica del mese', 'tog') + '</section>' +
+    '<button class="btn primary" data-a="calMake">' + ICON.cal + 'Crea promemoria</button><p class="muted tiny center" style="margin-top:10px">Se cambi i giorni di allenamento, crea di nuovo il file ed elimina i vecchi eventi.</p>'),
+  calMake: async () => {
+    const on = (id) => { const el = document.getElementById(id); return !!(el && el.classList.contains('on')); };
+    const time = (($('#calTime') || {}).value || '18:30');
+    const ics = buildIcs(P(), { time: time, weigh: on('calWeigh'), measures: on('calMeas'), backup: on('calBackup') });
+    const name = 'leva-promemoria.ics';
+    try {
+      const f = new File([ics], name, { type: 'text/calendar' });
+      if (navigator.canShare && navigator.canShare({ files: [f] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({ files: [f], title: 'Promemoria Leva' }); closeSheet(); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
+    closeSheet(); toast('File creato: aprilo con il calendario');
+  },
   newsOk: () => { S.meta.news = false; save(); closeSheet(); if (!S.meta.safety) openSheet(safetyHtml(true)); },
   newsProfile: () => { S.meta.news = false; save(); closeSheet(); go('profile'); },
 
@@ -537,7 +640,7 @@ function swipeTarget() {
     const c = exCtx(curSheet.a); if (!c) return null;
     return { el: $('#sheetBody'), can: (d) => c.i + d >= 0 && c.i + d < c.list.length, go: (d) => showSheet('ex', { id: c.list[c.i + d], ctx: curSheet.a.ctx }, { replace: true }), sheet: true };
   }
-  if (route === 'session' && S.active && !ov) {
+  if (route === 'session' && S.active && !ov && S.active.phase !== 'warm' && S.active.phase !== 'cool') {
     const a = S.active;
     return { el: document.querySelector('#app .view'), can: (d) => a.idx + d >= 0 && a.idx + d < a.ex.length, go: (d) => { a.idx += d; save(); render(); window.scrollTo(0, 0); } };
   }

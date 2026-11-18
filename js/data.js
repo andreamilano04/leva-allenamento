@@ -331,3 +331,20 @@ const V1 = {
   },
   wname: { A: 'Spinta e quadricipiti', B: 'Tirata e catena posteriore', C: 'Mista e braccia' }
 };
+
+/* Riscaldamento e defaticamento guidati. s = secondi (per lato se side), a = animazione. */
+const WARMUP = [
+  { id: 'wu_jacks', n: 'Saltelli a gambe divaricate', s: 40, a: 'jacks', d: 'Salta aprendo gambe e braccia, poi richiudi. Ritmo leggero, atterra sugli avampiedi.' },
+  { id: 'wu_arms', n: 'Circonduzioni delle braccia', s: 30, a: 'armcircle', d: 'Braccia tese di lato: fai cerchi ampi e lenti, prima in avanti poi indietro.' },
+  { id: 'wu_catcow', n: 'Gatto e mucca', s: 40, a: 'catcow', d: 'In quadrupedia: inarca la schiena guardando in alto, poi arrotondala guardando l’ombelico. Muovi anche i polsi.' },
+  { id: 'wu_squat', n: 'Squat lenti', s: 40, a: 'squat', d: 'Squat a corpo libero lenti e controllati, scendendo un po’ di più a ogni ripetizione.' },
+  { id: 'wu_lunge', n: 'Affondi alternati', s: 40, a: 'split', d: 'Passo indietro e ginocchio verso terra, alternando le gambe. Busto dritto.' },
+  { id: 'wu_push', n: 'Piegamenti facili', s: 30, a: 'pushup_knee', d: '8–10 piegamenti sulle ginocchia per preparare spalle e polsi.' }
+];
+const COOLDOWN = [
+  { id: 'cd_chest', n: 'Allungamento del petto', s: 30, side: true, a: 'chestwall', d: 'Mano appoggiata al muro all’altezza della spalla, ruota piano il busto dal lato opposto.' },
+  { id: 'cd_quad', n: 'Allungamento dei quadricipiti', s: 30, side: true, a: 'quadstretch', d: 'In piedi, afferra la caviglia e porta il tallone verso il gluteo. Ginocchia vicine, tieniti a un muro.' },
+  { id: 'cd_hip', n: 'Affondo basso per l’anca', s: 30, side: true, a: 'hipflexor', d: 'Ginocchio dietro a terra su un cuscino: spingi piano il bacino in avanti, busto dritto.' },
+  { id: 'cd_ham', n: 'Allungamento dei femorali', s: 40, a: 'hamstretch', d: 'Seduto a gambe tese, schiena lunga: piegati in avanti dalle anche verso i piedi.' },
+  { id: 'cd_child', n: 'Posizione del bambino', s: 40, a: 'childpose', d: 'Seduto sui talloni, porta il busto in avanti e le braccia lunghe a terra. Respira lentamente.' }
+];

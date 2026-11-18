@@ -5,11 +5,11 @@
 
 const KEY = 'leva.v2';
 const KEY_V1 = 'leva.v1';
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 
 function fresh() {
-  return { v: 2, profile: null, prog: {}, sessions: [], weights: [], active: null,
-    plan: { over: {} }, prefs: {}, settings: { sound: true, vibrate: true }, meta: {} };
+  return { v: 2, profile: null, prog: {}, sessions: [], weights: [], measures: [], active: null,
+    plan: { over: {} }, prefs: {}, settings: { sound: true, vibrate: true, voice: true, warm: true, cool: true }, meta: {} };
 }
 
 /* Nessuna attrezzatura data per scontata: la sceglie l'utente nell'onboarding. */
@@ -17,7 +17,7 @@ function defaultEquip() { return { band: false, backpack: false, chair: false, t
 
 function defaultProfile() {
   return { name: '', height: 175, weight: 65.5, goal: 70, level: 'int', obj: 'hyp', wdays: [0, 2, 4], dur: 45,
-    equip: defaultEquip(), avoid: [], excl: [] };
+    equip: defaultEquip(), avoid: [], excl: [], match: [] };
 }
 
 /* Converte un salvataggio v1 nel formato v2, senza perdere niente. */
@@ -80,6 +80,7 @@ function sanitize(d) {
     p.name = String(p.name || '').slice(0, 30);
     p.height = inR(p.height, 120, 230, 175); p.weight = inR(p.weight, 30, 200, 70); p.goal = inR(p.goal, 30, 200, p.weight);
     p.avoid = p.avoid.filter((z) => STRESS[z]); p.excl = p.excl.filter((x) => EX[x]);
+    p.match = (Array.isArray(p.match) ? p.match : []).filter((x) => Number.isInteger(x) && x >= 0 && x <= 6);
     Object.keys(p.equip).forEach((k) => { if (!EQUIP[k]) delete p.equip[k]; else p.equip[k] = !!p.equip[k]; });
   }
   if (!s.prog || typeof s.prog !== 'object' || Array.isArray(s.prog)) s.prog = {};
@@ -96,7 +97,10 @@ function sanitize(d) {
   if (!s.plan || typeof s.plan !== 'object') s.plan = { over: {} };
   if (!s.plan.over) s.plan.over = {};
   if (!s.prefs || typeof s.prefs !== 'object') s.prefs = {};
-  s.settings = Object.assign({ sound: true, vibrate: true }, s.settings || {});
+  s.settings = Object.assign({ sound: true, vibrate: true, voice: true, warm: true, cool: true }, s.settings || {});
+  const MK = ['arm', 'chest', 'waist', 'thigh'];
+  s.measures = (Array.isArray(s.measures) ? s.measures : []).filter((m) => m && isDay(m.d)).map((m) => { const o = { d: m.d }; MK.forEach((k) => { const v = +m[k]; if (isFinite(v) && v >= 15 && v <= 200) o[k] = Math.round(v * 10) / 10; }); return o; }).filter((m) => Object.keys(m).length > 1);
+  s.measures.sort((a, b) => (a.d < b.d ? -1 : 1));
   if (!s.meta) s.meta = {};
   if (s.active && (!Array.isArray(s.active.ex) || !s.active.ex.length || !s.active.ex.every((e) => e && EX[e.x] && Array.isArray(e.sets)))) s.active = null;
   return s;

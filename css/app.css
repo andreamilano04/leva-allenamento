@@ -329,3 +329,6 @@ body.full #tabbar{display:none}
 .exprog i{display:block;height:100%;background:var(--ac);border-radius:9px;transition:width .2s}
 #sheetBody,#app .view{touch-action:pan-y}
 #sheet .pane{overflow-x:hidden}
+
+.wd .ball{position:absolute;top:-7px;right:-3px;font-size:12px;font-style:normal;line-height:1}
+.rt-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}

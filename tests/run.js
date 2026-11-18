@@ -104,5 +104,34 @@ console.log('\nIMC');
 test('IMC calcolato correttamente', () => { ok(Math.abs(R('bmi')(65.5, 175) - 21.39) < 0.01); });
 test('Fasce IMC', () => { eq(R('bmiCat')(18.4).n, 'Sottopeso'); eq(R('bmiCat')(18.5).n, 'Normopeso'); eq(R('bmiCat')(24.99).n, 'Normopeso'); eq(R('bmiCat')(25).n, 'Sovrappeso'); eq(R('bmiCat')(30).n, 'Obesità'); });
 
+console.log('\nRiscaldamento, partite, scarico, calendario');
+test('Riscaldamento e defaticamento: esercizi con animazione e durata', () => {
+  R('WARMUP.concat(COOLDOWN)').forEach((m) => { ok(R('ANIMS')[m.a], 'animazione mancante: ' + m.id); ok(m.s >= 15 && m.d, 'dati incompleti: ' + m.id); });
+  const c = R('routineSteps')('cool'); ok(c.filter((x) => x.side).length % 2 === 0, 'lati non appaiati');
+  const wm = R('routineMin')('warm'); ok(wm >= 3 && wm <= 7, 'riscaldamento di ' + wm + ' min');
+});
+test('Partite: oggi, ieri, domani', () => {
+  const p = profile([], [0, 2, 4], 45, { match: [5] }); // sabato
+  eq(R('matchNear')(p, '2026-11-21'), 'oggi'); eq(R('matchNear')(p, '2026-11-22'), 'ieri'); eq(R('matchNear')(p, '2026-11-20'), 'domani'); eq(R('matchNear')(p, '2026-11-18'), null);
+  eq(R('matchNear')(profile([], [0, 2, 4], 45), '2026-11-21'), null);
+});
+test('Scarico proposto dopo 6 settimane piene, non prima', () => {
+  const p = profile([], [0, 2, 4], 45); const now = R('parseD')('2026-11-18');
+  const mk = (weeks) => { const st = R('fresh()'); for (let w = 1; w <= weeks; w++) for (let k = 0; k < 3; k++) { const d = new Date(2026, 10, 16 - 7 * w + k * 2); st.sessions.push({ d: R('dkey')(d), ex: [] }); } return st; };
+  ok(!R('deloadStatus')(p, mk(5), now).due, '5 settimane: troppo presto'); ok(R('deloadStatus')(p, mk(6), now).due, '6 settimane: dovrebbe proporlo');
+  const st = mk(8); st.meta.deloadWeek = '2026-11-16'; ok(R('deloadStatus')(p, st, now).active, 'scarico attivo');
+  const st2 = mk(8); st2.meta.deloadSnooze = '2026-11-16'; ok(!R('deloadStatus')(p, st2, now).due, 'rimandato');
+});
+test('File calendario valido con ricorrenze', () => {
+  const ics = R('buildIcs')(profile([], [0, 2, 4], 45), { time: '18:30', weigh: true, measures: true, backup: true }, new Date(2026, 10, 18, 12));
+  ok(ics.startsWith('BEGIN:VCALENDAR') && ics.trim().endsWith('END:VCALENDAR'));
+  ok(ics.indexOf('RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR') > 0, 'giorni allenamento'); ok(ics.indexOf('DTSTART:20261118T183000') > 0, 'primo allenamento mercoledì 18');
+  eq((ics.match(/BEGIN:VEVENT/g) || []).length, 4); ok(ics.indexOf('\r\n') > 0, 'righe CRLF');
+});
+test('Misure del corpo validate nei backup', () => {
+  const s = R('upgrade')({ v: 2, profile: { height: 175, weight: 65, goal: 70 }, measures: [{ d: '2026-11-01', arm: 31.24, waist: 999 }, { d: 'x', arm: 30 }, { d: '2026-11-02', chest: 'a' }] });
+  eq(s.measures, [{ d: '2026-11-01', arm: 31.2 }]);
+});
+
 console.log('\n' + pass + ' superati, ' + fail + ' falliti\n');
 process.exit(fail ? 1 : 0);

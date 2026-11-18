@@ -111,8 +111,8 @@ function seg(id, opts, cur, act) {
 function toggle(id, on, title, sub, act) {
   return '<button class="switch" data-a="' + (act || 'tog') + '" data-v="' + id + '" aria-pressed="' + (on ? 'true' : 'false') + '"><div class="f"><b>' + esc(title) + '</b>' + (sub ? '<div class="muted small">' + esc(sub) + '</div>' : '') + '</div><span class="tog ' + (on ? 'on' : '') + '" id="' + id + '"></span></button>';
 }
-function daysPicker(id, sel) {
-  return '<div class="days" id="' + id + '">' + WD.map((d, i) => '<button data-a="dayPick" data-v="' + i + '" class="' + (sel.indexOf(i) >= 0 ? 'on' : '') + '" aria-label="' + d + '">' + WD1[i] + '</button>').join('') + '</div>';
+function daysPicker(id, sel, act) {
+  return '<div class="days" id="' + id + '">' + WD.map((d, i) => '<button data-a="' + (act || 'dayPick') + '" data-v="' + i + '" class="' + (sel.indexOf(i) >= 0 ? 'on' : '') + '" aria-label="' + d + '">' + WD1[i] + '</button>').join('') + '</div>';
 }
 function tile(icon, label, value, act, v) {
   return '<' + (act ? 'button data-a="' + act + '"' + (v ? ' data-v="' + v + '"' : '') : 'div') + ' class="tile"><span class="ic">' + ICON[icon] + '</span><div><b>' + value + '</b><div class="l">' + esc(label) + '</div></div></' + (act ? 'button' : 'div') + '>';

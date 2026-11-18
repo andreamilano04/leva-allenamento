@@ -33,6 +33,7 @@ function vHome() {
   const doneW = sessionsThisWeek(S);
   h += '<section class="card"><div class="card-h"><h3>Questa settimana</h3><span class="tag ' + (doneW >= p.wdays.length ? 'ac' : '') + '">' + doneW + '/' + p.wdays.length + ' allenamenti</span></div>' + weekStrip(wp) + '</section>';
 
+  h += remindersCard(p);
   const cw = curWeight();
   h += '<div class="grid3">' + tile('flame', 'settimane di fila', String(streakWeeks(p, S))) + tile('repeat', 'allenamenti', String(S.sessions.length), 'tab', 'progress') + tile('scale', 'peso (kg)', fmt1(cw), 'weightSheet') + '</div>';
 
@@ -84,7 +85,9 @@ function weightMini() {
 }
 
 function heroWorkout(W, label, isNext) {
-  return '<section class="hero"><span class="big">' + esc(W.wid) + '</span><div class="eyebrow">' + esc(label) + '</div><h2>' + esc(W.name) + '</h2>' +
+  const mn = matchNear(S.profile, today()); const dl = deloadStatus(S.profile, S).active;
+  const notes = []; if (mn) notes.push('⚽ Partita ' + mn + ': gambe alleggerite'); if (dl) notes.push('Settimana di scarico: una serie in meno');
+  return '<section class="hero"><span class="big">' + esc(W.wid) + '</span><div class="eyebrow">' + esc(label) + '</div><h2>' + esc(W.name) + '</h2>' + (notes.length ? '<p class="sub" style="font-weight:600">' + esc(notes.join(' · ')) + '</p>' : '') +
     '<div class="meta"><span>' + ICON.clock + '~' + W.min + ' min</span><span>' + ICON.dumb + plural(W.slots.length, 'esercizio', 'esercizi') + '</span><span>' + ICON.repeat + W.sets + ' serie</span></div>' +
     '<button class="btn black" data-a="start" data-v="' + W.wid + '">' + ICON.play + 'Inizia allenamento</button>' +
     '<div class="sp10"></div><button class="link" style="color:rgba(11,12,5,.7);width:100%;position:relative" data-a="openWorkout" data-v="' + W.wid + '">Vedi gli esercizi</button></section>';
@@ -94,7 +97,8 @@ function weekStrip(wp) {
   return '<div class="week">' + wp.map((d) => {
     const cls = ['wd']; if (d.train) cls.push('train'); if (d.done.length) cls.push('done'); if (d.today) cls.push('today');
     const lab = d.done.length ? '✓' : (d.plan ? d.plan : '');
-    return '<div class="' + cls.join(' ') + '"><span>' + WD[d.i] + '</span><b>' + d.d.getDate() + '</b><small>' + esc(lab) + '</small></div>';
+    const ball = (S.profile.match || []).indexOf(d.i) >= 0 ? '<em class="ball" title="Partita">⚽</em>' : '';
+    return '<div class="' + cls.join(' ') + '">' + ball + '<span>' + WD[d.i] + '</span><b>' + d.d.getDate() + '</b><small>' + esc(lab) + '</small></div>';
   }).join('') + '</div>';
 }
 
@@ -250,6 +254,8 @@ function vProgress() {
   if (w.length) h += '<div class="sp10"></div>' + w.slice(-4).reverse().map((e) => '<div class="lrow"><div class="f">' + fmtD(e.d) + '</div><b>' + fmt1(e.kg) + ' kg</b><button class="icon-btn sm" data-a="delWeightAsk" data-v="' + e.d + '" aria-label="Elimina misurazione">' + ICON.x + '</button></div>').join('');
   h += '</section>';
 
+  h += measuresCard();
+
   // Esercizi del programma
   const pr = program(p, S); const seen = {};
   h += '<div class="sec-h"><h3>Esercizi</h3><span class="muted small">tocca per lo storico</span></div>';
@@ -310,17 +316,22 @@ function vProfile() {
     '<div class="field"><label>Obiettivo</label>' + seg('pObj', Object.keys(GOALS).map((k) => [k, GOALS[k].n.split(' ')[0] === 'Massa' ? 'Massa' : GOALS[k].n.split(' ')[0]]), d.obj, 'pPick') + '<p class="muted tiny" style="margin:8px 4px 0">' + esc(GOALS[d.obj].d) + '</p></div>' +
     '<div class="field"><label>Livello</label>' + seg('pLevel', Object.keys(LEVELS).map((k) => [k, LEVELS[k]]), d.level, 'pPick') + '</div>' +
     '<div class="field"><label>Giorni di allenamento (da 2 a 4)</label>' + daysPicker('pDays', d.wdays) + '</div>' +
-    '<div class="field" style="margin-bottom:0"><label>Durata per allenamento</label>' + seg('pDur', [[30, '30 min'], [45, '45 min'], [60, '60 min']], d.dur, 'pPick') + '</div></section>';
+    '<div class="field"><label>Durata per allenamento</label>' + seg('pDur', [[30, '30 min'], [45, '45 min'], [60, '60 min']], d.dur, 'pPick') + '</div>' +
+    '<div class="field" style="margin-bottom:0"><label>Giorni delle partite (calcio o altro sport)</label>' + daysPicker('pMatch', d.match || [], 'matchPick') + '<p class="muted tiny" style="margin:8px 4px 0">Il giorno prima, il giorno stesso e il giorno dopo gli esercizi per le gambe hanno una serie in meno.</p></div></section>';
   h += '<div class="sec-h"><h3>Attrezzatura</h3></div><section class="card">' + EQUIP_ORDER.map((k) => toggle('eq_' + k, d.equip[k], EQUIP[k].n, EQUIP[k].d, 'pEq')).join('') + '</section>';
   h += '<div class="sec-h"><h3>Zone da proteggere</h3></div><section class="card"><p class="muted small" style="margin-bottom:12px">Gli esercizi che le sollecitano molto vengono sostituiti.</p><div class="tags">' + Object.keys(STRESS).map((k) => '<button class="pill ' + (d.avoid.indexOf(k) >= 0 ? 'on' : '') + '" data-a="pAvoid" data-v="' + k + '">' + STRESS[k] + '</button>').join('') + '</div>' +
     (d.excl.length ? '<div class="sp16"></div><h4 style="margin-bottom:8px">Esercizi esclusi</h4>' + d.excl.filter((x) => EX[x]).map((x) => '<div class="lrow"><div class="f">' + esc(EX[x].n) + '</div><button class="btn ghost xs" data-a="pUnexcl" data-v="' + x + '">Rimetti</button></div>').join('') : '') + '</section>';
-  h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + toggle('setNutri', S.settings.nutri !== false, 'Consigli sull’alimentazione', 'Scheda informativa nella schermata Oggi', 'setTog') + '</section>' +
+  h += '<div class="sec-h"><h3>Preferenze</h3></div><section class="card">' + toggle('setSound', S.settings.sound, 'Suono a fine recupero', 'Tre bip quando il timer finisce', 'setTog') + toggle('setVibrate', S.settings.vibrate, 'Vibrazione', 'Sui telefoni che la supportano', 'setTog') + toggle('setNutri', S.settings.nutri !== false, 'Consigli sull’alimentazione', 'Scheda informativa nella schermata Oggi', 'setTog') +
+    toggle('setVoice', S.settings.voice !== false, 'Guida vocale', 'Conto alla rovescia e nome del prossimo esercizio', 'setTog') +
+    toggle('setWarm', S.settings.warm !== false, 'Riscaldamento guidato', 'Circa ' + routineMin('warm') + ' minuti prima di ogni allenamento', 'setTog') +
+    toggle('setCool', S.settings.cool !== false, 'Defaticamento guidato', 'Circa ' + routineMin('cool') + ' minuti di allungamento alla fine', 'setTog') + '</section>' +
+    '<button class="item" data-a="calSheet"><span class="letter">' + ICON.cal + '</span><div class="f"><div class="t">Promemoria nel calendario</div><div class="s">Allenamenti, pesate, misure e backup</div></div><span class="chev">' + ICON.chevR + '</span></button>' +
     '<button class="item" data-a="safetyShow"><span class="letter">' + ICON.heart + '</span><div class="f"><div class="t">Avvertenze di sicurezza</div><div class="s">Quando fermarti, cosa controllare</div></div><span class="chev">' + ICON.chevR + '</span></button>';
   const dirty = JSON.stringify(d) !== JSON.stringify(p);
   h += '<button class="btn primary" data-a="saveProfile" ' + (dirty ? '' : 'disabled') + '>' + (dirty ? 'Salva e aggiorna il programma' : 'Nessuna modifica da salvare') + '</button>';
   if (deferredInstall) h += '<div class="sp10"></div><button class="btn ghost" data-a="install">' + ICON.phone + 'Installa l’app sul telefono</button>';
   h += '<div class="sec-h"><h3>I tuoi dati</h3></div><section class="card"><p class="muted small" style="margin-bottom:14px">I dati restano solo su questo telefono. Fai un backup ogni tanto: il file si può reimportare anche su un altro telefono.</p>' +
-    '<div class="grid2"><button class="btn ghost" data-a="export">' + ICON.dl + 'Esporta</button><button class="btn ghost" data-a="import">' + ICON.ul + 'Importa</button></div>' +
+    '<p class="muted tiny" style="margin:-6px 0 12px">Ultimo backup: ' + (S.meta.lastBackup ? esc(fmtD(S.meta.lastBackup)) : 'mai') + '</p><div class="grid2"><button class="btn ghost" data-a="export">' + ICON.dl + 'Salva backup</button><button class="btn ghost" data-a="import">' + ICON.ul + 'Importa</button></div>' +
     '<div class="sp10"></div><button class="btn danger" data-a="resetAsk">Cancella tutti i dati</button></section>';
   h += '<p class="muted tiny center" style="margin:10px 0 6px">Leva · versione ' + APP_VERSION + '</p>';
   return h;
@@ -347,7 +358,8 @@ function vOnboard() {
   } else if (st === 3) {
     h += '<h1>Quando ti alleni?</h1><p class="muted" style="margin:8px 0 22px">Scegli da 2 a 4 giorni, meglio non consecutivi.</p>' + daysPicker('obDays', d.wdays) +
       '<p class="muted small center" style="margin:12px 0 26px">' + (d.wdays.length >= 2 ? esc(SPLITS[clamp(d.wdays.length, 2, 4)].name) + ' · ' + d.wdays.map((i) => WD[i]).join(', ') : 'Seleziona almeno 2 giorni') + '</p>' +
-      '<h3 style="margin-bottom:12px">Quanto tempo hai?</h3>' + [[30, 'Circa 30 minuti', 'Solo gli esercizi fondamentali'], [45, 'Circa 45 minuti', 'Fondamentali e complementari'], [60, 'Circa 60 minuti', 'Più serie sui fondamentali']].map((o) => opt('obDur', o[0], d.dur === o[0], o[1], o[2])).join('');
+      '<h3 style="margin-bottom:12px">Quanto tempo hai?</h3>' + [[30, 'Circa 30 minuti', 'Solo gli esercizi fondamentali'], [45, 'Circa 45 minuti', 'Fondamentali e complementari'], [60, 'Circa 60 minuti', 'Più serie sui fondamentali']].map((o) => opt('obDur', o[0], d.dur === o[0], o[1], o[2])).join('') +
+      '<div class="sp10"></div><h3 style="margin-bottom:6px">Giochi partite? <span class="muted small">(facoltativo)</span></h3><p class="muted small" style="margin-bottom:12px">Per esempio calcio: vicino alle partite le gambe lavorano un po’ meno.</p>' + daysPicker('obMatch', d.match || [], 'matchPick');
   } else if (st === 4) {
     h += '<h1>Cosa hai in casa?</h1><p class="muted" style="margin:8px 0 22px">Il programma userà solo queste cose. Puoi cambiarle quando vuoi.</p><section class="card">' + EQUIP_ORDER.map((k) => toggle('eq_' + k, d.equip[k], EQUIP[k].n, EQUIP[k].d, 'obEq')).join('') + '</section>';
   } else if (st === 5) {
@@ -368,6 +380,7 @@ function opt(act, v, on, title, sub) { return '<button class="opt ' + (on ? 'on'
 
 /* ---------- Sessione ---------- */
 function vSession() {
+  if (S.active.rt && S.active.phase !== 'main') return vRoutine();
   const a = S.active; const e = a.ex[a.idx]; const x = EX[e.x]; const L = LADDERS[x.l]; const u = x.u;
   const doneSets = a.ex.reduce((t, q) => t + q.sets.filter((s) => s.done).length, 0); const all = a.ex.reduce((t, q) => t + q.sets.length, 0);
   let h = '<div class="sess-top"><button class="icon-btn" data-a="sessMenu" aria-label="Menu allenamento">' + ICON.x + '</button><div><div class="eyebrow center">' + esc(a.wname) + '</div><div class="clock" id="elapsed">' + mmss(elapsedSec()) + '</div></div>' +
@@ -416,7 +429,8 @@ function vSummary() {
       if (o.type === 'down') return '<div class="up"><span class="letter" style="background:var(--ord);color:var(--or)">' + ICON.down + '</span><div class="f"><div class="b">' + esc(o.name) + '</div><div class="muted small">' + esc(o.msg) + '</div>' + (o.applied ? '<div class="small ac" style="margin-top:6px">Prossima volta: ' + esc(o.toName) + '.</div>' : '<button class="btn ghost xs" style="margin-top:8px" data-a="applyDown" data-v="' + i + '">Passa a ' + esc(o.toName) + '</button>') + '</div></div>';
       return '<div class="up"><span class="letter gray">' + (o.type === 'max' ? ICON.trophy : ICON.target) + '</span><div class="f"><div class="b">' + esc(o.name) + '</div><div class="muted small">' + esc(o.msg) + '</div></div></div>';
     }).join('') + '</section>';
-  } else h += '<p class="muted small center" style="margin:6px 10px 18px">Quando completi tutte le serie al massimo del range con un po’ di margine, l’esercizio passa al livello successivo.</p>';
+  } else if (sm.deload) h += '<p class="muted small center" style="margin:6px 10px 18px">Settimana di scarico: i livelli restano uguali. Dalla prossima settimana si riparte con la progressione.</p>';
+  else h += '<p class="muted small center" style="margin:6px 10px 18px">Quando completi tutte le serie al massimo del range con un po’ di margine, l’esercizio passa al livello successivo.</p>';
   h += '<div class="foot"><div class="in"><button class="btn primary" data-a="tab" data-v="home">Fatto</button></div></div>';
   return h;
 }
@@ -433,4 +447,60 @@ function safetyHtml(withButton) {
   return '<div class="letter solid" style="width:56px;height:56px;border-radius:18px;margin-bottom:16px">' + ICON.heart + '</div><h2>Allenati in sicurezza</h2><p class="muted" style="margin:8px 0 16px">Poche regole da tenere a mente.</p>' +
     SAFETY.map((x) => '<div class="lrow" style="align-items:flex-start"><span class="letter gray" style="width:38px;height:38px;border-radius:13px">' + ICON[x[0]] + '</span><div class="f"><div class="t">' + esc(x[1]) + '</div><div class="muted small">' + esc(x[2]) + '</div></div></div>').join('') +
     '<div class="sp16"></div>' + (withButton ? '<button class="btn primary" data-a="safetyOk">Ho capito</button>' : '<button class="btn ghost" data-a="navBack">Chiudi</button>');
+}
+
+/* ---------- Promemoria nella schermata Oggi ---------- */
+function remindersCard(p) {
+  const items = [];
+  const dl = deloadStatus(p, S);
+  if (dl.due) items.push('<div class="lrow" style="align-items:flex-start"><span class="letter">' + ICON.moon + '</span><div class="f"><div class="t">Settimana di scarico consigliata</div><div class="muted small">Ti alleni con costanza da ' + dl.weeks + ' settimane. Questa settimana: una serie in meno e nessuna salita di livello, per recuperare e ripartire più forte.</div><div class="row" style="margin-top:10px"><button class="btn primary xs" data-a="deloadYes">Va bene</button><button class="btn ghost xs" data-a="deloadLater">Più avanti</button></div></div></div>');
+  if (dl.active) items.push('<div class="lrow"><span class="letter">' + ICON.moon + '</span><div class="f"><div class="t">Settimana di scarico in corso</div><div class="muted small">Una serie in meno per esercizio, livelli invariati.</div></div></div>');
+  const lm = S.measures[S.measures.length - 1]; const dm = lm ? dayN(today()) - dayN(lm.d) : null;
+  if (S.sessions.length >= 1 && (dm == null || dm >= 21)) items.push('<div class="lrow"><span class="letter">' + ICON.target + '</span><div class="f"><div class="t">' + (dm == null ? 'Prendi le misure del corpo' : 'Sono passate ' + Math.floor(dm / 7) + ' settimane dalle ultime misure') + '</div><div class="muted small">Braccio, petto, vita e coscia: mostrano se stai mettendo muscolo.</div></div><button class="btn ghost xs" data-a="measureSheet">Misura</button></div>');
+  const lb = S.meta.lastBackup; const db = lb ? dayN(today()) - dayN(lb) : null;
+  if (S.sessions.length >= 3 && (db == null || db >= 30)) items.push('<div class="lrow"><span class="letter">' + ICON.dl + '</span><div class="f"><div class="t">Salva un backup</div><div class="muted small">' + (db == null ? 'Non hai ancora salvato i tuoi dati' : 'Ultimo backup ' + db + ' giorni fa') + ': stanno solo su questo telefono.</div></div><button class="btn ghost xs" data-a="export">Salva</button></div>');
+  if (!items.length) return '';
+  return '<section class="card"><h3 style="margin-bottom:12px">Da fare</h3>' + items.join('') + '</section>';
+}
+
+/* ---------- Misure del corpo ---------- */
+const MEASURES = [['arm', 'Braccio', 'A metà tra spalla e gomito, braccio rilassato lungo il fianco'], ['chest', 'Petto', 'All’altezza dei capezzoli, dopo aver espirato normalmente'], ['waist', 'Vita', 'All’altezza dell’ombelico, pancia rilassata'], ['thigh', 'Coscia', 'Nel punto più largo, in piedi a gambe leggermente divaricate']];
+function measuresCard() {
+  const m = S.measures; const k = mmode;
+  let h = '<section class="card"><div class="card-h"><div><div class="eyebrow">Misure del corpo</div><h3 style="margin-top:4px">Circonferenze (cm)</h3></div><button class="btn ghost sm" data-a="measureSheet">' + ICON.plus + 'Misure</button></div>';
+  if (!m.length) return h + '<p class="muted small">Ogni 3 settimane misura braccio, petto, vita e coscia con un metro da sarta. Se braccio, petto e coscia crescono mentre la vita resta stabile, stai mettendo muscolo.</p></section>';
+  h += seg('mMode', MEASURES.map((x) => [x[0], x[1]]), k, 'mMode') + '<div class="sp16"></div>';
+  const pts = m.filter((x) => x[k] != null);
+  const first = pts[0], last = pts[pts.length - 1];
+  if (last) h += '<div class="row" style="margin-bottom:10px"><div class="f"><span class="big-n">' + fmt1(last[k]) + '<small>cm</small></span></div>' + (pts.length > 1 ? '<span class="tag ' + (last[k] - first[k] >= 0 === (k !== 'waist') ? 'ac' : 'or') + '">' + (last[k] - first[k] >= 0 ? '+' : '') + fmt1(last[k] - first[k]) + ' cm dal ' + fmtD(first.d) + '</span>' : '') + '</div>';
+  h += lineChart(pts.map((x) => ({ x: dayN(x.d), y: x[k] })), { h: 130, minSpan: 2, l0: first ? fmtD(first.d) : '', l1: last ? fmtD(last.d) : '', empty: 'Servono almeno 2 misurazioni per il grafico.', label: 'Andamento ' + k });
+  return h + '</section>';
+}
+function sheetMeasures() {
+  const last = S.measures[S.measures.length - 1] || {};
+  return '<h3 style="margin-bottom:4px">Misure del corpo</h3><p class="muted small" style="margin-bottom:16px">Con un metro da sarta, al mattino, sempre nello stesso punto. Puoi lasciare vuote quelle che non prendi.</p>' +
+    '<div class="grid2">' + MEASURES.map((x) => field('m_' + x[0], x[1] + ' (cm)', 'number', last[x[0]] != null ? String(last[x[0]]) : '', '', '0.1')).join('') + '</div>' +
+    '<section class="card tight">' + MEASURES.map((x) => '<p class="small" style="margin-bottom:6px"><b>' + x[1] + ':</b> <span class="muted">' + esc(x[2]) + '</span></p>').join('') + '</section>' +
+    '<button class="btn primary" data-a="saveMeasures">Salva misure</button>';
+}
+
+/* ---------- Riscaldamento / defaticamento guidati ---------- */
+function vRoutine() {
+  const a = S.active; const r = a.rt; const st = r.steps[r.i]; const m = routineMove(st.id);
+  const warm = r.kind === 'warm'; const nx = r.steps[r.i + 1];
+  let h = '<div class="sess-top"><button class="icon-btn" data-a="sessMenu" aria-label="Menu allenamento">' + ICON.x + '</button><div><div class="eyebrow center">' + (warm ? 'Riscaldamento' : 'Defaticamento') + '</div><div class="clock" id="elapsed">' + mmss(elapsedSec()) + '</div></div>' +
+    '<button class="icon-btn" data-a="pause" aria-label="Pausa">' + ICON.pause + '</button></div>';
+  h += '<div class="prog-top"><i style="width:' + (r.i / r.steps.length * 100).toFixed(1) + '%"></i></div>';
+  h += '<div class="eyebrow">' + (r.i + 1) + ' di ' + r.steps.length + (warm ? ' · prima dell’allenamento' : ' · dopo l’allenamento') + '</div>';
+  h += '<h1 class="ex-name">' + esc(m.n) + (st.side ? ' <span class="muted" style="font-size:18px">· lato ' + st.side + '</span>' : '') + '</h1>';
+  h += animBox(m.a);
+  h += '<p class="desc">' + esc(m.d) + '</p>';
+  h += '<div class="rt-row"><button class="icon-btn" data-a="rtGo" data-v="-1" ' + (r.i > 0 ? '' : 'disabled') + ' aria-label="Precedente">' + ICON.chevL + '</button>' +
+    '<div class="ring small" style="margin:0">' + '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="#1F1F22" stroke-width="5.5"/><circle id="rtRing" cx="50" cy="50" r="45" fill="none" stroke="#C4F03A" stroke-width="5.5" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="0"/></svg>' +
+    '<div class="t"><b id="rtT">' + Math.ceil(rtLeft()) + '</b><span>secondi</span></div></div>' +
+    '<button class="icon-btn" data-a="rtGo" data-v="1" aria-label="Successivo">' + ICON.chevR + '</button></div>';
+  h += '<div class="center" style="margin-top:12px"><button class="btn ghost sm" data-a="rtToggle" style="margin:0 auto">' + (r.end ? ICON.pause + 'Ferma' : ICON.play + 'Riprendi') + '</button></div>';
+  h += '<p class="muted small center" style="margin-top:12px">Poi: ' + esc(nx ? routineMove(nx.id).n + (nx.side ? ' (lato ' + nx.side + ')' : '') : (warm ? 'inizia l’allenamento' : 'riepilogo')) + '</p>';
+  h += '<div class="foot"><div class="in"><button class="btn ' + (warm ? 'ghost' : 'primary') + '" data-a="rtSkip">' + (warm ? 'Salta il riscaldamento' : 'Vai al riepilogo') + '</button></div></div>';
+  return h;
 }

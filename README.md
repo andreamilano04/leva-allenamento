@@ -1,69 +1,92 @@
 # Leva – Allenamento a casa
 
-Web app installabile (PWA) per l'allenamento a corpo libero a casa: programma personalizzato, allenamento guidato con timer, progressione automatica degli esercizi e statistiche. Funziona offline e tiene i dati solo sul telefono.
+Web app installabile (PWA) per allenarsi a casa a corpo libero: crea un programma personalizzato, guida l'allenamento passo per passo e fa progredire gli esercizi in automatico. Funziona offline e i dati restano solo sul telefono.
 
-**App:** https://leva-allenamento.pages.dev
+**Prova l'app:** https://leva-allenamento.pages.dev
+
+<p>
+<img src="docs/screenshots/1-oggi.png" width="180" alt="Schermata Oggi">
+<img src="docs/screenshots/2-programma.png" width="180" alt="Programma">
+<img src="docs/screenshots/6-allenamento.png" width="180" alt="Allenamento guidato">
+<img src="docs/screenshots/7-recupero.png" width="180" alt="Recupero con RIR">
+</p>
+<p>
+<img src="docs/screenshots/5-riscaldamento.png" width="180" alt="Riscaldamento guidato">
+<img src="docs/screenshots/3-esercizio.png" width="180" alt="Scheda esercizio">
+<img src="docs/screenshots/4-progressi.png" width="180" alt="Progressi">
+</p>
 
 ## Funzionalità
 
-- **Onboarding** in 6 passaggi: dati personali, obiettivo (massa, forza, resistenza, forma), livello, giorni (da 2 a 4), durata (30/45/60 min), attrezzatura, zone da proteggere.
-- **Programma automatico**: full body ×2, full body A/B/C oppure parte alta/parte bassa, a seconda dei giorni. Gli esercizi vengono scelti in base all'attrezzatura disponibile e adattati alla durata. Si può sostituire un esercizio o cambiare le serie.
-- **Animazioni in loop** di ogni esercizio (figura SVG, funziona offline).
-- **Tasto indietro** del telefono gestito dentro l'app.
-- **Libreria** di oltre 70 esercizi con ricerca, filtri per muscolo e per attrezzatura, istruzioni, errori comuni, note di sicurezza, varianti e alternative.
-- **Allenamento guidato**: check-in iniziale (energia e gambe stanche), "da battere", timer di recupero ad anello, RIR facoltativo, cronometro per gli esercizi a tempo, peso dello zaino, pausa e ripresa, annullamento solo dopo conferma.
-- **Progressione**: si sale di livello quando tutte le serie arrivano al massimo del range con margine (RIR ≥ 1); senza RIR servono 2 allenamenti di fila. Dopo 2 sessioni sotto il minimo viene proposta una variante più facile.
-- **Progressi**: grafico settimanale, costanza, peso, storico per esercizio, record personali, storico degli allenamenti.
-- **Dati**: backup JSON con esportazione e importazione validata (accetta anche i backup della v1).
+**Programma**
+- Configurazione iniziale: obiettivo (massa, forza, resistenza, forma), livello, giorni (da 2 a 4), durata (30, 45 o 60 minuti), attrezzatura, zone da proteggere, giorni delle partite.
+- Generatore automatico: full body ×2, full body A/B/C oppure parte alta/parte bassa. Sceglie solo esercizi possibili con l'attrezzatura disponibile, non ripete lo stesso movimento nella seduta e adatta il numero di esercizi e di serie alla durata.
+- Volume settimanale per gruppo muscolare, sostituzione degli esercizi, modifica delle serie.
 
-## Struttura
+**Allenamento**
+- Riscaldamento e defaticamento guidati, con timer.
+- Ogni esercizio ha un'animazione in loop: un omino SVG con cinematica inversa, funziona anche offline.
+- Durante l'allenamento: "da battere" (risultato dell'ultima volta), timer di recupero ad anello, RIR facoltativo, cronometro per gli esercizi a tempo, peso dello zaino, pausa e ripresa anche dopo la chiusura dell'app.
+- Guida vocale: conto alla rovescia e nome del prossimo esercizio.
+- Adattamento alla giornata: energia, gambe stanche e giorni vicini alle partite.
+
+**Progressione**
+- Si sale di livello solo con tutte le serie al massimo del range e un margine (RIR ≥ 1). Senza RIR servono due allenamenti di fila.
+- Dopo due sedute sotto il minimo viene proposta una variante più facile.
+- Dopo 6 settimane costanti viene proposta una settimana di scarico.
+- Prerequisiti chiari per gli esercizi avanzati.
+
+**Progressi**
+- Grafici settimanali, costanza, record personali, storico per esercizio.
+- Peso con grafico e linea dell'obiettivo, IMC con le fasce dell'OMS, misure del corpo (braccio, petto, vita, coscia).
+
+**Comodità**
+- Libreria di oltre 70 esercizi con ricerca, filtri, istruzioni, errori comuni, note di sicurezza e scorrimento laterale tra un esercizio e l'altro.
+- Tasto indietro del telefono gestito passo per passo.
+- Promemoria nel calendario (file `.ics` con eventi ricorrenti) e backup JSON condivisibile, con validazione all'importazione.
+
+## Scelte tecniche
+
+- **Nessun framework e nessuna build.** HTML, CSS e JavaScript puro, divisi per responsabilità. I file statici sono pubblicati su Cloudflare Pages a ogni commit su `main`.
+- **Offline first.** Un service worker con strategia "prima la rete" mette in cache solo i file dell'app; i dati stanno in `localStorage`. Anche il font (Lexend) è salvato in locale.
+- **Dati con ID stabili.** Esercizi e slot delle schede hanno ID che non cambiano mai: storico e progressione restano validi anche se cambiano nomi, ordine o programma. La migrazione dal formato v1 non tocca mai i dati originali.
+- **Animazioni procedurali.** Ogni posa indica dove devono stare mani e piedi; un risolutore di cinematica inversa a due segmenti calcola gomiti e ginocchia, così gli arti mantengono sempre la loro lunghezza durante l'animazione.
+- **Test automatici** sul motore (`node tests/run.js`), eseguiti da GitHub Actions a ogni push.
 
 ```
 index.html            struttura della pagina
 css/app.css           stile
-fonts/lexend.woff2    font, salvato in locale per l'uso offline
-js/data.js            muscoli, attrezzatura, esercizi (LADDERS), schede (WORKOUTS), tabella di migrazione V1
+fonts/lexend.woff2    font in locale
+js/data.js            muscoli, attrezzatura, esercizi, schede, riscaldamento, migrazione v1
 js/store.js           stato, salvataggio, migrazione e validazione dei dati
-js/engine.js          programma, scelta degli esercizi, durata, progressione, statistiche
+js/engine.js          programma, progressione, statistiche, IMC, scarico, partite, calendario
 js/ui.js              icone, grafici SVG, componenti
-js/anim.js            animazioni degli esercizi (omino SVG con cinematica inversa)
+js/anim.js            animazioni degli esercizi (cinematica inversa)
 js/views.js           schermate
-js/app.js             azioni, sessione, timer, navigazione, avvio
-tests/run.js          test automatici (node tests/run.js)
-sw.js                 service worker (cache dei file, mai dei dati)
+js/app.js             azioni, sessione, timer, voce, navigazione, gesti, avvio
+sw.js                 service worker
+tests/run.js          test automatici
 ```
-
-Nessun framework e nessuna build: sono file statici pubblicati su Cloudflare Pages.
 
 ## Dati (`localStorage`, chiave `leva.v2`)
 
 | Campo | Contenuto |
 |---|---|
-| `profile` | nome, altezza, peso, obiettivo, `level`, `obj`, `wdays` (0 = lunedì), `dur`, `equip`, `avoid`, `excl` |
-| `prog` | per ogni slot di scheda: `{ id, last, hits, low, load }`, dove `id` è l'ID stabile dell'esercizio attuale |
-| `sessions` | allenamenti: `{ d, wid, wname, dur, vol, kg, check, ex: [{ s, k, x, reps, rir, u, load }], ups }` |
-| `weights` | `{ d, kg }` |
-| `active` | allenamento in corso (si riprende anche dopo aver chiuso l'app) |
-| `plan.over` | sostituzioni e serie modificate dall'utente |
+| `profile` | nome, altezza, peso, obiettivo, `level`, `obj`, `wdays` (0 = lunedì), `dur`, `equip`, `avoid`, `excl`, `match` |
+| `prog` | per ogni slot: `{ id, last, hits, low, load }`, dove `id` è l'esercizio attuale |
+| `sessions` | `{ d, wid, wname, dur, vol, kg, check, ex: [{ s, k, x, reps, rir, u, load }], ups }` |
+| `weights` / `measures` | `{ d, kg }` / `{ d, arm, chest, waist, thigh }` |
+| `active` | allenamento in corso, compresa la fase (`warm`, `main` o `cool`) |
+| `plan.over` | sostituzioni e serie modificate |
+| `settings` / `meta` | preferenze; backup, scarico, avvisi già visti |
 
-Regole per le modifiche:
+Regole: gli ID di esercizi (`ph_classic`…) e slot (`A1`…) non si cambiano e non si riutilizzano. La chiave `leva.v1` non viene mai modificata. A ogni rilascio si aggiorna `CACHE` in `sw.js`.
 
-- Gli **ID degli esercizi** (`ph_classic`, `rt_straight`…) e degli **slot** (`A1`, `B3`…) non si cambiano e non si riutilizzano: lo storico li usa come riferimento. Per aggiungere un esercizio si crea un ID nuovo.
-- La vecchia chiave `leva.v1` non viene mai modificata: alla prima apertura i dati vengono copiati e convertiti in `leva.v2`.
-- A ogni rilascio si aggiorna `CACHE` in `sw.js`.
-
-## Sviluppo locale
+## Sviluppo
 
 ```
-python3 -m http.server 8000
+python3 -m http.server 8000      # poi apri http://localhost:8000
+node tests/run.js                # test automatici, senza dipendenze
 ```
 
-Poi apri http://localhost:8000 (il service worker è attivo anche su localhost).
-
-## Test
-
-```
-node tests/run.js
-```
-
-Nessuna installazione richiesta. I test controllano dati e ID, generatore del programma (attrezzatura, duplicati, durata, volume), progressione, migrazione v1 → v2, validazione dei backup, IMC e animazioni. Da lanciare dopo ogni modifica: se un test fallisce, la modifica ha rotto qualcosa.
+Leva fornisce indicazioni generali di allenamento e non sostituisce il parere di un medico.

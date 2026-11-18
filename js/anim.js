@@ -150,7 +150,16 @@ const ANIMS = {
   pullover: { props: [{ k: 'pack', j: 'handF' }], a: { hip: [70, 97], t: -90, h: 0, fF: [96, 101, 'u'], fB: [95, 101, 'u'], hF: [41, 68, 'f'], hB: [40, 68, 'f'] }, b: { hip: [70, 97], t: -90, hF: [12, 92, 'u'], hB: [11, 92, 'u'] } },
   calfstep: { props: [{ k: 'step', x: 82, y: 88, w: 40 }], a: { hip: [80, 52.4], t: 180, fF: [81, 90.4, 'f'], fB: [80, 90.4, 'f'], tF: 110, tB: 110, aF: [5, 5], aB: [0, 0] }, b: { hip: [84.6, 43.4], t: 180, fF: [85.6, 81.4, 'f'], fB: [84.6, 81.4, 'f'], tF: 20, tB: 20 } },
   calffloor: { a: { hip: [80, 63], t: 180, fF: [81, 101, 'f'], fB: [92, 92, 'f'], tF: 90, tB: 120, aF: [5, 5], aB: [0, 0] }, b: { hip: [83.5, 56.9], t: 180, fF: [84.5, 94.9, 'f'], fB: [95.5, 86, 'f'], tF: 30 } },
-  dips: { props: [{ k: 'chair', x: 72, y: 72, w: 24, back: 'r' }], a: { hip: [84, 71], t: 180, h: 0, hF: [86, 70, 'b'], hB: [84, 70, 'b'], fF: [114, 100, 'u'], fB: [113, 100, 'u'], tF: 170, tB: 170 }, b: { hip: [82, 86], t: 176 } }
+  dips: { props: [{ k: 'chair', x: 72, y: 72, w: 24, back: 'r' }], a: { hip: [84, 71], t: 180, h: 0, hF: [86, 70, 'b'], hB: [84, 70, 'b'], fF: [114, 100, 'u'], fB: [113, 100, 'u'], tF: 170, tB: 170 }, b: { hip: [82, 86], t: 176 } },
+  /* Riscaldamento e defaticamento */
+  jacks: { front: true, a: { hip: [80, 63], t: 180, fF: [85, 101, 'f'], fB: [75, 101, 'b'], tF: 80, tB: -80, hF: [89, 63, 'f'], hB: [71, 63, 'b'] }, b: { hip: [80, 61], fF: [98, 101, 'f'], fB: [62, 101, 'b'], hF: [95, 8, 'f'], hB: [65, 8, 'b'] } },
+  armcircle: { front: true, a: { hip: [80, 63], t: 180, fF: [86, 101, 'f'], fB: [74, 101, 'b'], tF: 80, tB: -80, hF: [116, 37, 'd'], hB: [44, 37, 'd'] }, b: { hF: [110, 14, 'd'], hB: [50, 14, 'd'] } },
+  catcow: { a: { hip: [62, 74], t: 92, h: -40, hF: [93, 101, 'b'], hB: [91, 101, 'b'], fF: [44, 100, 'd'], fB: [43, 100, 'd'], tF: -90, tB: -90 }, b: { hip: [62, 72], t: 84, h: 50 } },
+  childpose: { hold: true, a: { hip: [52, 86], t: 76, h: 25, fF: [40, 100, 'f'], fB: [39, 100, 'f'], tF: -90, tB: -90, hF: [112, 99, 'u'], hB: [111, 99, 'u'] }, b: { hip: [52, 87], t: 77 } },
+  hamstretch: { a: { hip: [50, 97], t: 150, h: 10, fF: [88, 99, 'u'], fB: [87, 99, 'u'], tF: 180, tB: 180, hF: [80, 88, 'u'], hB: [79, 89, 'u'] }, b: { t: 118, h: 20, hF: [90, 95, 'u'], hB: [89, 96, 'u'] } },
+  quadstretch: { hold: true, props: [{ k: 'wall', x: 112 }], a: { hip: [80, 63], t: 180, fF: [82, 101, 'f'], fB: [72, 62, 'd'], tB: -20, hB: [72, 60, 'b'], hF: [110, 40, 'd'] }, b: { hip: [80, 62.5], fB: [72, 61, 'd'], hB: [72, 59, 'b'] } },
+  chestwall: { hold: true, props: [{ k: 'wall', x: 38 }], a: { hip: [72, 63], t: 178, fF: [78, 101, 'f'], fB: [70, 101, 'f'], hF: [47, 33, 'd'], hB: [80, 62, 'b'] }, b: { hip: [74, 63], t: 176 } },
+  hipflexor: { hold: true, props: [{ k: 'cushion', x: 44, y: 100, w: 16 }], a: { hip: [74, 85], t: 180, fF: [100, 101, 'f'], fB: [36, 100, 'd'], tF: 90, tB: -90, hF: [94, 82, 'd'], hB: [92, 82, 'd'] }, b: { hip: [78, 87], t: 178 } }
 };
 
 /* Esercizio → animazione */
@@ -194,7 +203,7 @@ function frameInner(key, k) {
 
 /* HTML del riquadro animato; l'animazione parte da sola (vedi tickAnims). */
 function animBox(exId, cls) {
-  const key = EX_ANIM[exId]; if (!key || !ANIMS[key]) return '';
+  const key = EX_ANIM[exId] || (ANIMS[exId] ? exId : null); if (!key || !ANIMS[key]) return '';
   return '<div class="anim ' + (cls || '') + '"><svg viewBox="0 -12 160 124" data-anim="' + key + '" role="img" aria-label="Animazione dell’esercizio">' + frameInner(key, 0) + '</svg></div>';
 }
 
