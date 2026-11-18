@@ -324,3 +324,8 @@ body.full #tabbar{display:none}
 .ring.small{width:176px;height:176px;margin:10px 0 12px}.ring.small .t b{font-size:46px}
 #ov{overflow-y:auto}
 #ov .in{margin:auto 0}
+
+.exprog{height:4px;border-radius:9px;background:var(--s4);margin:2px auto 7px;max-width:160px;overflow:hidden}
+.exprog i{display:block;height:100%;background:var(--ac);border-radius:9px;transition:width .2s}
+#sheetBody,#app .view{touch-action:pan-y}
+#sheet .pane{overflow-x:hidden}

@@ -526,29 +526,70 @@ window.addEventListener('popstate', () => {
   navGuard = false; handleBack(); syncHistory();
 });
 
-/* ---------- Scorrimento laterale ---------- */
-function swipeEx(dir) {
-  if (!curSheet || curSheet.k !== 'ex') return;
-  const c = exCtx(curSheet.a); if (!c) return;
-  const n = c.i + dir; if (n < 0 || n >= c.list.length) return;
-  showSheet('ex', { id: c.list[n], ctx: curSheet.a.ctx }, { replace: true });
-  const pane = $('#sheetBody'); pane.classList.remove('slideL', 'slideR'); void pane.offsetWidth; pane.classList.add(dir > 0 ? 'slideL' : 'slideR');
-}
-let tStart = null;
-document.addEventListener('touchstart', (ev) => { const t = ev.touches[0]; tStart = { x: t.clientX, y: t.clientY, el: ev.target, ts: Date.now() }; }, { passive: true });
-document.addEventListener('touchend', (ev) => {
-  if (!tStart) return; const t = ev.changedTouches[0]; const dx = t.clientX - tStart.x, dy = t.clientY - tStart.y; const el = tStart.el; tStart = null;
-  if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
-  if (el.closest && el.closest('.stepper, .pills, input, .seg, .rirs')) return;
-  const dir = dx < 0 ? 1 : -1;
-  if ($('#sheet').classList.contains('show')) { if (el.closest('#sheet')) swipeEx(dir); return; }
-  if (route === 'session' && S.active && !ov) {
-    const a = S.active; const n = a.idx + dir; if (n < 0 || n >= a.ex.length) return;
-    a.idx = n; save(); render(); window.scrollTo(0, 0);
-    const v = document.querySelector('#app .view'); if (v) v.classList.add(dir > 0 ? 'slideL' : 'slideR');
+/* ---------- Scorrimento laterale (carosello) ----------
+   La schermata segue il dito; se lo spostamento supera circa 1/4 dello schermo
+   (o il gesto è veloce) scorre via e il nuovo esercizio entra dal lato opposto.
+   Ai bordi della lista c'è resistenza e la schermata torna al suo posto. */
+const SW_MS = 220;
+function swipeTarget() {
+  if ($('#sheet').classList.contains('show')) {
+    if (!curSheet || curSheet.k !== 'ex') return null;
+    const c = exCtx(curSheet.a); if (!c) return null;
+    return { el: $('#sheetBody'), can: (d) => c.i + d >= 0 && c.i + d < c.list.length, go: (d) => showSheet('ex', { id: c.list[c.i + d], ctx: curSheet.a.ctx }, { replace: true }), sheet: true };
   }
-}, { passive: true });
+  if (route === 'session' && S.active && !ov) {
+    const a = S.active;
+    return { el: document.querySelector('#app .view'), can: (d) => a.idx + d >= 0 && a.idx + d < a.ex.length, go: (d) => { a.idx += d; save(); render(); window.scrollTo(0, 0); } };
+  }
+  return null;
+}
+/* Cambio animato, usato sia dal gesto sia dalle frecce. */
+function slideTo(tg, d, fromX) {
+  const W = window.innerWidth; let el = tg.el;
+  el.style.transition = 'transform ' + SW_MS + 'ms cubic-bezier(.2,.9,.3,1), opacity ' + SW_MS + 'ms';
+  el.style.transform = 'translateX(' + (-d * W) + 'px)'; el.style.opacity = '0';
+  setTimeout(() => {
+    tg.go(d);
+    if (tg.sheet) $('#sheet .pane').scrollTop = 0;
+    const ne = tg.sheet ? $('#sheetBody') : document.querySelector('#app .view');
+    ne.style.transition = 'none'; ne.style.transform = 'translateX(' + (d * W * 0.6) + 'px)'; ne.style.opacity = '0';
+    void ne.offsetWidth;
+    ne.style.transition = 'transform ' + SW_MS + 'ms cubic-bezier(.2,.9,.3,1), opacity ' + SW_MS + 'ms';
+    ne.style.transform = 'translateX(0)'; ne.style.opacity = '1';
+    setTimeout(() => { ne.style.transition = ''; ne.style.transform = ''; ne.style.opacity = ''; }, SW_MS + 20);
+  }, fromX == null ? SW_MS * 0.6 : SW_MS * 0.8);
+}
+function swipeEx(dir) { const tg = swipeTarget(); if (tg && tg.can(dir)) slideTo(tg, dir); }
 
+let drag = null;
+document.addEventListener('touchstart', (ev) => {
+  if (ev.touches.length !== 1) { drag = null; return; }
+  const t = ev.touches[0]; const el = ev.target;
+  if (el.closest && el.closest('.stepper, .pills, input, .seg, .rirs, .lvl, .bmi-bar')) { drag = null; return; }
+  const tg = swipeTarget(); if (!tg || !tg.el) { drag = null; return; }
+  drag = { x: t.clientX, y: t.clientY, t0: Date.now(), axis: null, dx: 0, tg: tg };
+}, { passive: true });
+document.addEventListener('touchmove', (ev) => {
+  if (!drag) return; const t = ev.touches[0];
+  const dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+  if (!drag.axis) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; drag.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y'; }
+  if (drag.axis !== 'x') return;
+  ev.preventDefault();
+  const d = dx < 0 ? 1 : -1; const edge = !drag.tg.can(d);
+  drag.dx = edge ? dx * 0.25 : dx;
+  const el = drag.tg.el; el.style.transition = 'none';
+  el.style.transform = 'translateX(' + drag.dx + 'px)'; el.style.opacity = String(1 - Math.min(0.5, Math.abs(drag.dx) / window.innerWidth));
+}, { passive: false });
+document.addEventListener('touchend', () => {
+  if (!drag || drag.axis !== 'x') { drag = null; return; }
+  const g = drag; drag = null; const el = g.tg.el;
+  const v = Math.abs(g.dx) / Math.max(1, Date.now() - g.t0); const d = g.dx < 0 ? 1 : -1;
+  if ((Math.abs(g.dx) > window.innerWidth * 0.25 || (v > 0.45 && Math.abs(g.dx) > 30)) && g.tg.can(d)) { slideTo(g.tg, d, g.dx); return; }
+  el.style.transition = 'transform ' + SW_MS + 'ms cubic-bezier(.2,.9,.3,1), opacity ' + SW_MS + 'ms';
+  el.style.transform = 'translateX(0)'; el.style.opacity = '1';
+  setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, SW_MS + 20);
+}, { passive: true });
+document.addEventListener('touchcancel', () => { if (drag && drag.tg.el) { drag.tg.el.style.transform = ''; drag.tg.el.style.opacity = ''; } drag = null; }, { passive: true });
 
 /* ---------- Eventi ---------- */
 document.addEventListener('click', (ev) => {
