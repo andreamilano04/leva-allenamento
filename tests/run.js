@@ -41,7 +41,7 @@ test('Scale, alternative e partenze delle schede esistono', () => {
   const L = R('LADDERS'), EX = R('EX');
   Object.values(R('WORKOUTS')).forEach((w) => w.slots.forEach((s) => {
     [s.l].concat(s.alt || [], s.bar ? [s.bar.l] : []).forEach((l) => ok(L[l], 'scala mancante: ' + l + ' in ' + s.id));
-    if (s.start) ok(EX[s.start] && EX[s.start].l === s.l, 'start non valido in ' + s.id);
+    if (s.start) [].concat(s.start).forEach((id, i) => ok(EX[id] && (i === 0 ? EX[id].l === s.l : [s.l].concat(s.alt || []).indexOf(EX[id].l) >= 0), 'start non valido in ' + s.id + ': ' + id));
     if (s.bar && s.bar.start) ok(EX[s.bar.start] && EX[s.bar.start].l === s.bar.l, 'start sbarra non valido in ' + s.id);
   }));
 });
@@ -126,6 +126,36 @@ test('Salvataggio: la priorità scelta (parte alta) resta, valori strani tornano
   const s = R('upgrade')(JSON.parse(JSON.stringify(Object.assign({}, base, { profile: Object.assign({}, base.profile, { focus: 'boh', age: 300, sex: 'x' }) }))));
   eq([s.profile.focus, s.profile.age, s.profile.sex], ['bal', null, null]);
 });
+
+console.log('\nVarietà della tirata e recuperi');
+const PULL_L = ['row', 'row_bp', 'row_band', 'pulldown_band', 'pull', 'chin', 'pullover_bp', 'prone_pull'];
+const EQUIPS = [['backpack', 'chair', 'sofa'], ['backpack', 'chair'], ['band', 'backpack', 'chair', 'sofa', 'step'], ['bar', 'backpack', 'chair'], ['table', 'backpack', 'chair'], ['band', 'bar', 'backpack', 'chair', 'table']];
+test('Tirata: nessuna variante identica in tutte e tre le sedute (6 combinazioni di attrezzatura, 2 priorità)', () => EQUIPS.forEach((eqs) => ['bal', 'upper'].forEach((focus) => {
+  const pr = prog(profile(eqs, [0, 2, 4], 45, { level: 'int', focus: focus }));
+  const per = pr.workouts.map((w) => w.slots.filter((s) => PULL_L.indexOf(s.l) >= 0).map((s) => s.x));
+  per.forEach((xs, i) => ok(xs.length >= 1, eqs.join('+') + ': nessuna tirata in ' + pr.workouts[i].wid));
+  per[0].forEach((x) => ok(!(per[1].indexOf(x) >= 0 && per[2].indexOf(x) >= 0), eqs.join('+') + ' ' + focus + ': ' + x + ' in A, B e C'));
+})));
+test('Profilo di riferimento: almeno 2 varianti di rematore nella settimana', () => {
+  const xs = new Set(); prog(REF('bal')).workouts.forEach((w) => w.slots.forEach((s) => { if (s.l === 'row_bp') xs.add(s.x); }));
+  ok(xs.size >= 2, [...xs].join(', '));
+});
+test('Il rematore di C resta a un braccio anche dopo i progressi di A', () => {
+  const st = R('fresh()'); st.prog['A3@row_bp'] = { id: 'rb_one' };
+  const p = REF('bal'); st.profile = p; const w = R('program')(p, st).workouts;
+  eq(w.find((x) => x.wid === 'C').slots.find((s) => s.l === 'row_bp').x, 'rb_one');
+});
+test('Recuperi: valori effettivi uguali a quelli dichiarati (120/90/60/45 s)', () => {
+  const pr = prog(profile(['band', 'bar', 'backpack', 'chair', 'sofa', 'step', 'table'], [0, 2, 4], 60, { level: 'int', obj: 'hyp', neck: true }));
+  const COMP = R('COMPOUND'); let n = 0;
+  pr.workouts.forEach((w) => w.slots.forEach((s) => {
+    const want = /^neck_/.test(s.l) ? 45 : ['core', 'hang_core', 'calf', 'calf_floor', 'shrug_bp'].indexOf(s.l) >= 0 ? 60 : (COMP.indexOf(s.l) >= 0 && s.pri === 1) ? 120 : 90;
+    eq(s.rest, want, s.x + ' in ' + w.wid); n++;
+  }));
+  ok(n > 15, 'troppo pochi esercizi controllati');
+});
+test('Recuperi: le schede non hanno valori propri che possano contraddire il motore', () => Object.values(R('WORKOUTS')).forEach((w) => w.slots.forEach((s) => { ok(s.rest === undefined, s.id); if (s.bar) ok(s.bar.rest === undefined, s.bar.id); })));
+test('Recuperi: obiettivo forza +30 s sui principali, mai oltre 180 s', () => prog(profile(['backpack', 'chair', 'sofa'], [0, 2, 4], 60, { obj: 'str' })).workouts.forEach((w) => w.slots.forEach((s) => { ok(s.rest <= 180, s.x); if (s.pri === 1 && R('COMPOUND').indexOf(s.l) >= 0) eq(s.rest, 150, s.x); })));
 
 console.log('\nProgressione');
 function sess(x, r, reps, rir) { return { key: 'T', x: x, r: r, u: '', sets: reps.map((v, i) => ({ v: v, done: v != null, rir: rir ? rir[i] : null })) }; }

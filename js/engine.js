@@ -49,7 +49,9 @@ function currentId(key, lad, src, p, st) {
   const pr = st.prog[key];
   if (pr && EX[pr.id] && EX[pr.id].l === lad) return isAvail(pr.id, p) ? pr.id : snap(lad, EX[pr.id].i, p);
   // Partenza: livello indicato dalla scheda, adattato al livello e all'obiettivo.
-  let idx = (src.start && EX[src.start] && EX[src.start].l === lad) ? EX[src.start].i : 0;
+  // start può essere una lista: vale la prima variante della scala scelta (es. C parte dal rematore a un braccio).
+  const st0 = [].concat(src.start || []).filter((id) => EX[id] && EX[id].l === lad)[0];
+  let idx = st0 ? EX[st0].i : 0;
   if (p.level === 'beg') idx -= 1;
   if (p.level === 'adv') idx += 1;
   if (p.obj === 'str' && LADDERS[lad].lv.length > 2) idx += 1;
@@ -70,7 +72,7 @@ function resolveSlot(slot, p, st, wid, used) {
   if (p.level === 'beg' && sets >= 4) sets = 3;
   if (p.level === 'adv' && slot.pri === 1 && sets < 4) sets = 4;
   const r = rangeFor(x, src.r, p);
-  let rest = restFor(lad, slot.pri);
+  let rest = restFor(lad, slot.pri || 2);
   if (p.obj === 'str' && slot.pri === 1) rest = Math.min(180, rest + 30);
   if (p.obj === 'end') rest = Math.max(30, rest - 30);
   if (p.obj === 'fit') rest = Math.max(45, rest - 15);
@@ -88,18 +90,21 @@ function rangeFor(x, slotR, p) {
 
 /* Stima realistica: tempo di lavoro + recuperi (dopo l'ultima serie non c'è recupero) + cambio esercizio. */
 /* Recuperi decisi dal programma, come farebbe un personal trainer (obiettivo massa).
-   Le ricerche indicano un piccolo vantaggio per la crescita oltre i 60 s e nessuna differenza
-   apprezzabile oltre i 90 s (Singer et al., 2024): multiarticolari 90 s, isolamento 75 s,
-   polpacci/core 60 s, collo 45 s. Con l'obiettivo forza i principali salgono a 120 s. */
+   Meta-analisi di Singer et al. 2024: piccolo vantaggio per la crescita oltre i 60 s, nessuna
+   differenza apprezzabile oltre i 90 s. Quindi:
+   - 120 s solo per i multiarticolari principali della scheda (pri 1), dove la qualità delle
+     serie conta di più (Schoenfeld et al. 2016: 3 min meglio di 1 min sui multiarticolari);
+   - 90 s per gli altri multiarticolari e per l'isolamento;
+   - 60 s per polpacci, core e scrollate; 45 s per il collo.
+   Obiettivo forza: +30 s sui principali (massimo 180 s). Resistenza: -30 s. Tonificazione: -15 s.
+   Questi sono gli unici valori usati: le schede in data.js non hanno recuperi propri. */
 const COMPOUND = ['push_h', 'push_v', 'row', 'row_bp', 'row_band', 'pulldown_band', 'pull', 'chin', 'squat', 'squat_tempo', 'lunge', 'hinge', 'dip', 'tri_bw'];
+const REST = { main: 120, other: 90, small: 60, neck: 45 };
 function restFor(lad, pri) {
-  if (/^neck_/.test(lad)) return 45;
-  if (['core', 'hang_core', 'calf', 'calf_floor', 'shrug_bp'].indexOf(lad) >= 0) return 60;
-  // Multiarticolari 2 minuti, monoarticolari 90 s: oltre i 60 s c'è un piccolo vantaggio per la crescita
-  // (Singer et al. 2024, meta-analisi; Schoenfeld et al. 2016: 3 min > 1 min) perché nelle serie
-  // successive si riescono a fare più ripetizioni vicino al cedimento.
-  if (COMPOUND.indexOf(lad) >= 0) return 120;
-  return 90;
+  if (/^neck_/.test(lad)) return REST.neck;
+  if (['core', 'hang_core', 'calf', 'calf_floor', 'shrug_bp'].indexOf(lad) >= 0) return REST.small;
+  if (COMPOUND.indexOf(lad) >= 0 && pri === 1) return REST.main;
+  return REST.other;
 }
 /* Pausa tra un esercizio e il successivo: almeno 90 s per prepararsi. */
 function restBetween(rest) { return Math.max(rest, 90); }

@@ -232,76 +232,76 @@ Object.keys(LADDERS).forEach((k) => LADDERS[k].lv.forEach((lv, i) => {
    bar = variante con sbarra, start = esercizio di partenza, pri = priorità (1 = fondamentale). */
 const WORKOUTS = {
   A: { name: 'Spinta e quadricipiti', slots: [
-    { id: 'A1', l: 'push_h', start: 'ph_classic', sets: 4, r: [8, 15], rest: 90, pri: 1 },
-    { id: 'A2', l: 'squat', alt: ['lunge'], start: 'sq_bulg', sets: 4, r: [8, 12], rest: 90, side: true, pri: 1 },
-    { id: 'A3', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], rest: 90, pri: 1, bar: { id: 'A3b', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8], rest: 120 } },
-    { id: 'A4', l: 'push_v', start: 'pv_pike', sets: 3, r: [6, 12], rest: 90, pri: 2 },
-    { id: 'A5', l: 'hinge', start: 'hg_ht1', sets: 4, r: [10, 15], rest: 60, side: true, pri: 2 },
-    { id: 'A6', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], rest: 60, pri: 2 },
-    { id: 'A7', l: 'core', start: 'co_plank', sets: 3, r: [30, 60], rest: 60, pri: 3, bar: { id: 'A7b', l: 'hang_core', start: 'hc_knee', sets: 3, r: [8, 15], rest: 60 } } ] },
+    { id: 'A1', l: 'push_h', start: 'ph_classic', sets: 4, r: [8, 15], pri: 1 },
+    { id: 'A2', l: 'squat', alt: ['lunge'], start: 'sq_bulg', sets: 4, r: [8, 12], side: true, pri: 1 },
+    { id: 'A3', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], pri: 1, bar: { id: 'A3b', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8] } },
+    { id: 'A4', l: 'push_v', start: 'pv_pike', sets: 3, r: [6, 12], pri: 2 },
+    { id: 'A5', l: 'hinge', start: 'hg_ht1', sets: 4, r: [10, 15], side: true, pri: 2 },
+    { id: 'A6', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], pri: 2 },
+    { id: 'A7', l: 'core', start: 'co_plank', sets: 3, r: [30, 60], pri: 3, bar: { id: 'A7b', l: 'hang_core', start: 'hc_knee', sets: 3, r: [8, 15] } } ] },
   B: { name: 'Tirata e catena posteriore', slots: [
-    { id: 'B1', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 4, r: [10, 15], rest: 90, pri: 1 },
-    { id: 'B2', l: 'push_h', start: 'ph_decline', sets: 4, r: [8, 15], rest: 90, pri: 1 },
-    { id: 'B3', l: 'lunge', start: 'ln_bp', sets: 3, r: [8, 12], rest: 90, side: true, pri: 1 },
-    { id: 'B4', l: 'hinge', start: 'hg_nordic_neg', sets: 4, r: [4, 8], rest: 90, pri: 2 },
-    { id: 'B5', l: 'pulldown_band', alt: ['pullover_bp', 'prone_pull'], sets: 3, r: [12, 15], rest: 60, pri: 2, bar: { id: 'B5b', l: 'chin', start: 'ch_neg', sets: 3, r: [4, 8], rest: 120 } },
-    { id: 'B6', l: 'tri_bw', start: 'tb_close', sets: 3, r: [8, 15], rest: 60, pri: 2 },
-    { id: 'B7', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], rest: 60, side: true, pri: 3 } ] },
+    { id: 'B1', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 4, r: [10, 15], pri: 1 },
+    { id: 'B2', l: 'push_h', start: 'ph_decline', sets: 4, r: [8, 15], pri: 1 },
+    { id: 'B3', l: 'lunge', start: 'ln_bp', sets: 3, r: [8, 12], side: true, pri: 1 },
+    { id: 'B4', l: 'hinge', start: 'hg_nordic_neg', sets: 4, r: [4, 8], pri: 2 },
+    { id: 'B5', l: 'pulldown_band', alt: ['pullover_bp', 'prone_pull'], sets: 3, r: [12, 15], pri: 2, bar: { id: 'B5b', l: 'chin', start: 'ch_neg', sets: 3, r: [4, 8] } },
+    { id: 'B6', l: 'tri_bw', start: 'tb_close', sets: 3, r: [8, 15], pri: 2 },
+    { id: 'B7', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], side: true, pri: 3 } ] },
   C: { name: 'Mista e braccia', slots: [
-    { id: 'C1', l: 'push_h', start: 'ph_archer', sets: 4, r: [6, 12], rest: 90, side: true, pri: 1, note: 'Troppo difficile? Scendi di un livello o fai i piegamenti a diamante.' },
-    { id: 'C2', l: 'squat_tempo', start: 'st_bp', sets: 3, r: [10, 15], rest: 90, pri: 1 },
-    { id: 'C3', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], rest: 90, pri: 1, note: 'Presa stretta, mani alla larghezza delle spalle.', bar: { id: 'C3b', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8], rest: 120 } },
-    { id: 'C4', l: 'hinge', start: 'hg_slide', sets: 4, r: [8, 12], rest: 60, pri: 2 },
-    { id: 'C5', l: 'lat_raise', alt: ['y_raise'], sets: 3, r: [12, 20], rest: 60, pri: 2 },
-    { id: 'C6', l: 'triceps', alt: ['tri_bw'], sets: 3, r: [12, 15], rest: 60, pri: 3 },
-    { id: 'C7', l: 'core', start: 'co_hollow', sets: 3, r: [20, 40], rest: 60, pri: 2 },
-    { id: 'C8', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], rest: 45, side: true, pri: 2 } ] },
+    { id: 'C1', l: 'push_h', start: 'ph_archer', sets: 4, r: [6, 12], side: true, pri: 1, note: 'Troppo difficile? Scendi di un livello o fai i piegamenti a diamante.' },
+    { id: 'C2', l: 'squat_tempo', start: 'st_bp', sets: 3, r: [10, 15], pri: 1 },
+    { id: 'C3', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: ['rt_straight', 'rb_one'], sets: 4, r: [6, 12], pri: 1, note: 'Presa stretta, mani alla larghezza delle spalle.', bar: { id: 'C3b', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8] } },
+    { id: 'C4', l: 'hinge', start: 'hg_slide', sets: 4, r: [8, 12], pri: 2 },
+    { id: 'C5', l: 'lat_raise', alt: ['y_raise'], sets: 3, r: [12, 20], pri: 2 },
+    { id: 'C6', l: 'triceps', alt: ['tri_bw'], sets: 3, r: [12, 15], pri: 3 },
+    { id: 'C7', l: 'core', start: 'co_hollow', sets: 3, r: [20, 40], pri: 2 },
+    { id: 'C8', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], side: true, pri: 2 } ] },
 
   /* 2 giorni: due full body più dense */
   F1: { name: 'Full body 1', slots: [
-    { id: 'F1a', l: 'push_h', start: 'ph_classic', sets: 4, r: [8, 15], rest: 90, pri: 1 },
-    { id: 'F1b', l: 'squat', alt: ['lunge'], start: 'sq_bulg', sets: 4, r: [8, 12], rest: 90, side: true, pri: 1 },
-    { id: 'F1c', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], rest: 90, pri: 1, bar: { id: 'F1cb', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8], rest: 120 } },
-    { id: 'F1d', l: 'push_v', start: 'pv_pike', sets: 3, r: [6, 12], rest: 90, pri: 2 },
-    { id: 'F1e', l: 'hinge', start: 'hg_ht1', sets: 3, r: [10, 15], rest: 60, side: true, pri: 2 },
-    { id: 'F1f', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], rest: 60, pri: 3 },
-    { id: 'F1g', l: 'core', start: 'co_plank', sets: 3, r: [30, 60], rest: 60, pri: 3 } ] },
+    { id: 'F1a', l: 'push_h', start: 'ph_classic', sets: 4, r: [8, 15], pri: 1 },
+    { id: 'F1b', l: 'squat', alt: ['lunge'], start: 'sq_bulg', sets: 4, r: [8, 12], side: true, pri: 1 },
+    { id: 'F1c', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], pri: 1, bar: { id: 'F1cb', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8] } },
+    { id: 'F1d', l: 'push_v', start: 'pv_pike', sets: 3, r: [6, 12], pri: 2 },
+    { id: 'F1e', l: 'hinge', start: 'hg_ht1', sets: 3, r: [10, 15], side: true, pri: 2 },
+    { id: 'F1f', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], pri: 3 },
+    { id: 'F1g', l: 'core', start: 'co_plank', sets: 3, r: [30, 60], pri: 3 } ] },
   F2: { name: 'Full body 2', slots: [
-    { id: 'F2a', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 4, r: [10, 15], rest: 90, pri: 1, bar: { id: 'F2ab', l: 'chin', start: 'ch_neg', sets: 4, r: [4, 8], rest: 120 } },
-    { id: 'F2b', l: 'push_h', start: 'ph_decline', sets: 4, r: [8, 15], rest: 90, pri: 1 },
-    { id: 'F2c', l: 'lunge', start: 'ln_bp', sets: 3, r: [8, 12], rest: 90, side: true, pri: 1 },
-    { id: 'F2d', l: 'hinge', start: 'hg_nordic_neg', sets: 3, r: [4, 8], rest: 90, pri: 2 },
-    { id: 'F2e', l: 'tri_bw', start: 'tb_close', sets: 3, r: [8, 15], rest: 60, pri: 2 },
-    { id: 'F2f', l: 'lat_raise', alt: ['y_raise'], sets: 3, r: [12, 20], rest: 60, pri: 3 },
-    { id: 'F2g', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], rest: 60, side: true, pri: 3 } ] },
+    { id: 'F2a', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 4, r: [10, 15], pri: 1, bar: { id: 'F2ab', l: 'chin', start: 'ch_neg', sets: 4, r: [4, 8] } },
+    { id: 'F2b', l: 'push_h', start: 'ph_decline', sets: 4, r: [8, 15], pri: 1 },
+    { id: 'F2c', l: 'lunge', start: 'ln_bp', sets: 3, r: [8, 12], side: true, pri: 1 },
+    { id: 'F2d', l: 'hinge', start: 'hg_nordic_neg', sets: 3, r: [4, 8], pri: 2 },
+    { id: 'F2e', l: 'tri_bw', start: 'tb_close', sets: 3, r: [8, 15], pri: 2 },
+    { id: 'F2f', l: 'lat_raise', alt: ['y_raise'], sets: 3, r: [12, 20], pri: 3 },
+    { id: 'F2g', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], side: true, pri: 3 } ] },
 
   /* 4 giorni: parte alta / parte bassa */
   U1: { name: 'Parte alta 1', slots: [
-    { id: 'U1a', l: 'push_h', start: 'ph_decline', sets: 4, r: [8, 15], rest: 90, pri: 1 },
-    { id: 'U1b', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], rest: 90, pri: 1, bar: { id: 'U1bb', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8], rest: 120 } },
-    { id: 'U1c', l: 'push_v', start: 'pv_pike', sets: 3, r: [6, 12], rest: 90, pri: 1 },
-    { id: 'U1d', l: 'pulldown_band', alt: ['pullover_bp', 'prone_pull'], sets: 3, r: [12, 15], rest: 60, pri: 2, bar: { id: 'U1db', l: 'chin', start: 'ch_neg', sets: 3, r: [4, 8], rest: 120 } },
-    { id: 'U1e', l: 'tri_bw', start: 'tb_close', sets: 3, r: [8, 15], rest: 60, pri: 2 },
-    { id: 'U1f', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], rest: 60, pri: 3 } ] },
+    { id: 'U1a', l: 'push_h', start: 'ph_decline', sets: 4, r: [8, 15], pri: 1 },
+    { id: 'U1b', l: 'row', alt: ['row_bp', 'row_band', 'prone_pull'], start: 'rt_straight', sets: 4, r: [6, 12], pri: 1, bar: { id: 'U1bb', pk: 'pull', l: 'pull', start: 'pu_neg', sets: 4, r: [4, 8] } },
+    { id: 'U1c', l: 'push_v', start: 'pv_pike', sets: 3, r: [6, 12], pri: 1 },
+    { id: 'U1d', l: 'pulldown_band', alt: ['pullover_bp', 'prone_pull'], sets: 3, r: [12, 15], pri: 2, bar: { id: 'U1db', l: 'chin', start: 'ch_neg', sets: 3, r: [4, 8] } },
+    { id: 'U1e', l: 'tri_bw', start: 'tb_close', sets: 3, r: [8, 15], pri: 2 },
+    { id: 'U1f', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], pri: 3 } ] },
   L1: { name: 'Parte bassa 1', slots: [
-    { id: 'L1a', l: 'squat', alt: ['lunge'], start: 'sq_bulg', sets: 4, r: [8, 12], rest: 90, side: true, pri: 1 },
-    { id: 'L1b', l: 'hinge', start: 'hg_nordic_neg', sets: 3, r: [4, 8], rest: 90, pri: 1 },
-    { id: 'L1c', l: 'glute_single', sets: 3, r: [12, 15], rest: 60, side: true, pri: 2 },
-    { id: 'L1d', l: 'calf', alt: ['calf_floor'], sets: 4, r: [12, 20], rest: 60, side: true, pri: 2 },
-    { id: 'L1e', l: 'core', start: 'co_plank', sets: 3, r: [30, 60], rest: 60, pri: 3 } ] },
+    { id: 'L1a', l: 'squat', alt: ['lunge'], start: 'sq_bulg', sets: 4, r: [8, 12], side: true, pri: 1 },
+    { id: 'L1b', l: 'hinge', start: 'hg_nordic_neg', sets: 3, r: [4, 8], pri: 1 },
+    { id: 'L1c', l: 'glute_single', sets: 3, r: [12, 15], side: true, pri: 2 },
+    { id: 'L1d', l: 'calf', alt: ['calf_floor'], sets: 4, r: [12, 20], side: true, pri: 2 },
+    { id: 'L1e', l: 'core', start: 'co_plank', sets: 3, r: [30, 60], pri: 3 } ] },
   U2: { name: 'Parte alta 2', slots: [
-    { id: 'U2a', l: 'push_h', start: 'ph_archer', sets: 4, r: [6, 12], rest: 90, side: true, pri: 1 },
-    { id: 'U2b', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 4, r: [10, 15], rest: 90, pri: 1 },
-    { id: 'U2c', l: 'lat_raise', alt: ['y_raise'], sets: 3, r: [12, 20], rest: 60, pri: 2 },
-    { id: 'U2d', l: 'face_pull', alt: ['y_raise'], sets: 3, r: [12, 20], rest: 60, pri: 2 },
-    { id: 'U2e', l: 'triceps', alt: ['tri_bw'], sets: 3, r: [12, 15], rest: 60, pri: 3 },
-    { id: 'U2f', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], rest: 60, pri: 3 } ] },
+    { id: 'U2a', l: 'push_h', start: 'ph_archer', sets: 4, r: [6, 12], side: true, pri: 1 },
+    { id: 'U2b', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 4, r: [10, 15], pri: 1 },
+    { id: 'U2c', l: 'lat_raise', alt: ['y_raise'], sets: 3, r: [12, 20], pri: 2 },
+    { id: 'U2d', l: 'face_pull', alt: ['y_raise'], sets: 3, r: [12, 20], pri: 2 },
+    { id: 'U2e', l: 'triceps', alt: ['tri_bw'], sets: 3, r: [12, 15], pri: 3 },
+    { id: 'U2f', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [12, 15], pri: 3 } ] },
   L2: { name: 'Parte bassa 2', slots: [
-    { id: 'L2a', l: 'squat_tempo', start: 'st_bp', sets: 4, r: [10, 15], rest: 90, pri: 1 },
-    { id: 'L2b', l: 'lunge', start: 'ln_bp', sets: 3, r: [8, 12], rest: 90, side: true, pri: 1 },
-    { id: 'L2c', l: 'hinge', start: 'hg_ht1', sets: 3, r: [10, 15], rest: 60, side: true, pri: 2 },
-    { id: 'L2d', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], rest: 60, side: true, pri: 2 },
-    { id: 'L2e', l: 'core', start: 'co_hollow', sets: 3, r: [20, 40], rest: 60, pri: 3, bar: { id: 'L2eb', l: 'hang_core', start: 'hc_knee', sets: 3, r: [8, 15], rest: 60 } } ] }
+    { id: 'L2a', l: 'squat_tempo', start: 'st_bp', sets: 4, r: [10, 15], pri: 1 },
+    { id: 'L2b', l: 'lunge', start: 'ln_bp', sets: 3, r: [8, 12], side: true, pri: 1 },
+    { id: 'L2c', l: 'hinge', start: 'hg_ht1', sets: 3, r: [10, 15], side: true, pri: 2 },
+    { id: 'L2d', l: 'calf', alt: ['calf_floor'], sets: 3, r: [12, 20], side: true, pri: 2 },
+    { id: 'L2e', l: 'core', start: 'co_hollow', sets: 3, r: [20, 40], pri: 3, bar: { id: 'L2eb', l: 'hang_core', start: 'hc_knee', sets: 3, r: [8, 15] } } ] }
 };
 
 /* Quale insieme di schede usare in base ai giorni a settimana. */
@@ -310,11 +310,11 @@ const WORKOUTS = {
    (oltre ~11 serie per muscolo nella stessa seduta il guadagno in più è minimo: meglio spalmarle). */
 const LEG_LADDERS = ['squat', 'squat_tempo', 'lunge', 'hinge', 'calf', 'calf_floor'];
 const FOCUS_ADD = {
-  B: [{ id: 'B8u', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [10, 15], rest: 60, pri: 2 }],
-  C: [{ id: 'C9u', l: 'dip', alt: ['tri_bw', 'triceps'], sets: 3, r: [8, 15], rest: 90, pri: 2 }],
-  F2: [{ id: 'F2u', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [10, 15], rest: 60, pri: 2 }],
-  L1: [{ id: 'L1u', l: 'push_h', start: 'ph_classic', sets: 3, r: [8, 15], rest: 90, pri: 2 }],
-  L2: [{ id: 'L2u', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 3, r: [10, 15], rest: 90, pri: 2 }]
+  B: [{ id: 'B8u', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [10, 15], pri: 2 }],
+  C: [{ id: 'C9u', l: 'dip', alt: ['tri_bw', 'triceps'], sets: 3, r: [8, 15], pri: 2 }],
+  F2: [{ id: 'F2u', l: 'curl_band', alt: ['curl_bp'], sets: 3, r: [10, 15], pri: 2 }],
+  L1: [{ id: 'L1u', l: 'push_h', start: 'ph_classic', sets: 3, r: [8, 15], pri: 2 }],
+  L2: [{ id: 'L2u', l: 'row_band', alt: ['row_bp', 'row', 'prone_pull'], sets: 3, r: [10, 15], pri: 2 }]
 };
 const SPLITS = {
   2: { name: 'Full body ×2', order: ['F1', 'F2'] },
@@ -403,8 +403,8 @@ Object.assign(LADDERS, {
   EX[lv.id] = { id: lv.id, l: k, i: i, n: lv.n, d: lv.d, how: lv.how || [], err: lv.err || [], eq: lv.eq || [], r: lv.r || null, u: lv.u || LADDERS[k].u || '', pre: lv.pre || '', st: lv.st || [], m: lv.m || LADDERS[k].m, s: lv.s || LADDERS[k].s || [] };
 }));
 const NECK_SLOTS = [
-  { id: 'N1', l: 'neck_flex', start: 'nf_lift', sets: 2, r: [10, 20], rest: 45, pri: 2 },
-  { id: 'N2', l: 'neck_ext', start: 'ne_prone', sets: 2, r: [10, 20], rest: 45, pri: 2 },
-  { id: 'N3', l: 'neck_side', sets: 2, r: [15, 30], rest: 30, side: true, pri: 2 },
-  { id: 'N4', l: 'shrug_bp', sets: 2, r: [12, 20], rest: 45, pri: 2 }
+  { id: 'N1', l: 'neck_flex', start: 'nf_lift', sets: 2, r: [10, 20], pri: 2 },
+  { id: 'N2', l: 'neck_ext', start: 'ne_prone', sets: 2, r: [10, 20], pri: 2 },
+  { id: 'N3', l: 'neck_side', sets: 2, r: [15, 30], side: true, pri: 2 },
+  { id: 'N4', l: 'shrug_bp', sets: 2, r: [12, 20], pri: 2 }
 ];

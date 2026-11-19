@@ -119,6 +119,8 @@ function vPlan() {
   pr.workouts.forEach((w) => {
     h += '<button class="item" data-a="openWorkout" data-v="' + w.wid + '"><span class="letter ' + (w.wid === nw ? 'solid' : '') + '">' + esc(w.wid) + '</span><div class="f"><div class="t">' + esc(w.name) + (w.wid === nw ? ' <span class="tag ac" style="margin-left:4px">prossima</span>' : '') + '</div><div class="s">~' + totalMin(w) + ' min · ' + w.slots.length + ' esercizi · ' + w.sets + ' serie</div><div class="s">' + w.muscles.map((m) => MUSCLES[m]).join(' · ') + '</div></div><span class="chev">' + ICON.chevR + '</span></button>';
   });
+  // Senza sbarra né elastico non esiste una tirata verticale sicura in casa: lo diciamo invece di fingere che il pullover la sostituisca.
+  if (!p.equip.bar && !p.equip.band) h += '<section class="card tight" style="margin-top:8px"><p class="small"><b>Manca la tirata verticale.</b> <span class="muted">Senza sbarra né elastico i dorsali lavorano con rematori e pullover, che sono utili ma non equivalgono a trazioni o lat machine. Con una sbarra o un elastico il programma aggiunge trazioni e lat pulldown.</span></p></section>';
   const ms = muscleSets(pr); const zone = p.obj === 'end' ? [8, 16] : p.obj === 'str' ? [6, 14] : [10, 20];
   const maxv = Math.max(24, Math.max.apply(null, MUSCLE_ORDER.map((k) => ms[k])));
   h += '<div class="sec-h"><h3>Serie a settimana per muscolo</h3></div><section class="card">' +
