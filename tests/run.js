@@ -77,7 +77,7 @@ test('Alimentazione: calorie e proteine plausibili', () => {
 });
 test('Volume: i grandi muscoli sempre coperti, il programma completo a 60 minuti', () => {
   const m45 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 45, { focus: 'bal' })));
-  ['pet', 'dor', 'qua', 'glu'].forEach((k) => ok(m45[k] >= 8, '45 min: ' + k + ' = ' + m45[k])); ok(m45.fem >= 6, '45 min: femorali');
+  ['pet', 'dor', 'qua', 'glu'].forEach((k) => ok(m45[k] >= 8, '45 min: ' + k + ' = ' + m45[k])); ok(m45.fem >= 5, '45 min: femorali = ' + m45.fem);
   const m60 = R('muscleSets')(prog(profile(['band', 'backpack', 'chair', 'sofa', 'step'], [0, 2, 4], 60, { focus: 'bal' })));
   ['fem', 'pol', 'core'].forEach((k) => ok(m60[k] >= 3, '60 min: ' + k + ' = ' + m60[k]));
 });
@@ -86,6 +86,46 @@ test('Le zone da proteggere escludono gli esercizi che le sollecitano', () => {
   prog(profile(['band', 'backpack', 'chair', 'sofa', 'step', 'bar'], [0, 2, 4], 60, { avoid: ['spalle', 'polsi', 'ginocchia'] })).workouts.forEach((w) => w.slots.forEach((s) => ok(EX[s.x].st.every((z) => ['spalle', 'polsi', 'ginocchia'].indexOf(z) < 0), s.x)));
 });
 test('Con la sbarra compaiono le trazioni', () => { const xs = []; prog(profile(['bar'], [0, 2, 4], 45)).workouts.forEach((w) => w.slots.forEach((s) => xs.push(s.l))); ok(xs.indexOf('pull') >= 0, 'nessuna trazione'); });
+
+console.log('\nProfilo di riferimento: intermedio, 3 giorni, 45 min, ipertrofia, zaino + sedia + divano');
+const REF = (focus) => profile(['backpack', 'chair', 'sofa'], [0, 2, 4], 45, { level: 'int', obj: 'hyp', focus: focus });
+const GROUPS = ['pet', 'dor', 'spa', 'bic', 'tri', 'qua', 'fem', 'glu', 'pol', 'core'];
+const direct = (pr, m) => pr.workouts.reduce((t, w) => t + w.slots.filter((s) => R('EX')[s.x].m === m).reduce((a, s) => a + s.sets, 0), 0);
+['bal', 'upper'].forEach((focus) => {
+  const pr = prog(REF(focus)); const m = R('muscleSets')(pr); const EX = R('EX');
+  test(focus + ': nessun gruppo muscolare escluso (almeno 4 serie equivalenti a settimana)', () => GROUPS.forEach((k) => ok(m[k] >= 4, k + ' = ' + m[k])));
+  test(focus + ': polpacci e core con lavoro diretto (almeno 4 serie in 2 sedute)', () => ['pol', 'core'].forEach((k) => {
+    ok(direct(pr, k) >= 4, k + ' diretto = ' + direct(pr, k));
+    ok(pr.workouts.filter((w) => w.slots.some((s) => EX[s.x].m === k)).length >= 2, k + ' in meno di 2 sedute');
+  }));
+  test(focus + ': petto e dorsali almeno 10 serie, nessuna seduta oltre 11 serie dirette per muscolo', () => {
+    ok(m.pet >= 10 && m.dor >= 10, 'pet ' + m.pet + ', dor ' + m.dor);
+    pr.workouts.forEach((w) => GROUPS.forEach((k) => { const n = w.slots.filter((s) => EX[s.x].m === k).reduce((a, s) => a + s.sets, 0); ok(n <= 11, w.wid + ' ' + k + ' = ' + n); }));
+  });
+  test(focus + ': durata 40–50 minuti per ogni scheda', () => pr.workouts.forEach((w) => ok(w.min >= 40 && w.min <= 50, w.wid + ' = ' + w.min + ' min')));
+  test(focus + ': nessun esercizio ripetuto e almeno 2 serie per esercizio', () => pr.workouts.forEach((w) => {
+    const ls = w.slots.map((s) => s.l); eq(ls.length, new Set(ls).size, 'scala ripetuta in ' + w.wid);
+    const xs = w.slots.map((s) => s.x); eq(xs.length, new Set(xs).size, 'esercizio ripetuto in ' + w.wid);
+    w.slots.forEach((s) => ok(s.sets >= 2, s.x + ' con ' + s.sets + ' serie'));
+  }));
+  test(focus + ': solo attrezzatura disponibile (niente elastico né sbarra)', () => pr.workouts.forEach((w) => w.slots.forEach((s) => ok(R('isAvail')(s.x, REF(focus)), s.x))));
+});
+test('Parte alta: più serie per la parte alta e meno per le gambe rispetto a equilibrata', () => {
+  const b = R('muscleSets')(prog(REF('bal'))), u = R('muscleSets')(prog(REF('upper')));
+  const up = (m) => m.pet + m.dor + m.spa + m.bic + m.tri, leg = (m) => m.qua + m.fem + m.glu;
+  ok(up(u) > up(b), 'parte alta ' + up(u) + ' vs ' + up(b)); ok(leg(u) < leg(b), 'gambe ' + leg(u) + ' vs ' + leg(b));
+});
+test('Nuovo profilo: priorità equilibrata, età e sesso non impostati', () => { const p = R('defaultProfile()'); eq([p.focus, p.age, p.sex], ['bal', null, null]); });
+test('Alimentazione: nessuna stima senza età e sesso inseriti', () => {
+  ok(R('nutriPlan')(profile([], [0, 2, 4], 60), 65.5) === null, 'stima con dati inventati');
+  ok(R('nutriPlan')(profile([], [0, 2, 4], 60, { age: 22, sex: 'm' }), 65.5).kcal > 0);
+});
+test('Salvataggio: la priorità scelta (parte alta) resta, valori strani tornano a equilibrata', () => {
+  const base = { v: 2, profile: { height: 175, weight: 65.5, goal: 70, wdays: [0, 2, 4], equip: {} } };
+  eq(R('upgrade')(JSON.parse(JSON.stringify(Object.assign({}, base, { profile: Object.assign({}, base.profile, { focus: 'upper', age: 22, sex: 'm' }) })))).profile.focus, 'upper');
+  const s = R('upgrade')(JSON.parse(JSON.stringify(Object.assign({}, base, { profile: Object.assign({}, base.profile, { focus: 'boh', age: 300, sex: 'x' }) }))));
+  eq([s.profile.focus, s.profile.age, s.profile.sex], ['bal', null, null]);
+});
 
 console.log('\nProgressione');
 function sess(x, r, reps, rir) { return { key: 'T', x: x, r: r, u: '', sets: reps.map((v, i) => ({ v: v, done: v != null, rir: rir ? rir[i] : null })) }; }
@@ -111,7 +151,10 @@ test('Migrazione v1 → v2 conserva livelli, allenamenti e pesi', () => {
   const s = R('upgrade')(JSON.parse(JSON.stringify(v1)));
   eq(s.v, 2); eq(s.prog.A1.id, 'ph_decline'); eq(s.prog.pull.id, 'pu_neg');
   eq(s.sessions.length, 1); eq(s.sessions[0].ex[0].x, 'ph_decline'); eq(s.sessions[0].ex[1].k, 'pull'); eq(s.weights[0].kg, 65.6);
-  ok(s.profile.equip.band && s.profile.equip.table, 'attrezzatura v1 non mantenuta');
+  ok(Object.values(s.profile.equip).every((v) => v === false), 'la v1 non chiedeva l’attrezzatura: niente va dato per scontato');
+  ok(s.meta.equipCheck && s.meta.news, 'l’app deve chiedere di confermare l’attrezzatura');
+  const s2 = R('upgrade')(Object.assign(JSON.parse(JSON.stringify(v1)), { profile: Object.assign({}, v1.profile, { bar: true }) }));
+  ok(s2.profile.equip.bar, 'la sbarra scelta nella v1 resta');
 });
 test('Backup corrotto: dati non validi scartati, app utilizzabile', () => {
   const s = R('upgrade')({ v: 2, profile: { height: 999, weight: 'x', goal: 70, wdays: [0, 2, 9], equip: { razzo: true }, avoid: ['boh'], excl: ['nope'] }, prog: { A1: { id: 'nope' } },

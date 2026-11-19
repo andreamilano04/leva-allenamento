@@ -113,15 +113,30 @@ function estSlot(s) {
 }
 function estMin(slots) { return Math.round(slots.reduce((t, s) => t + estSlot(s), 0) / 60); }
 
-/* Adatta il numero di esercizi e di serie alla durata scelta. */
+/* Adatta il numero di esercizi e di serie alla durata scelta.
+   Polpacci e core non si tolgono mai (al massimo scendono a 2 serie): con 2 sedute a settimana
+   restano almeno 4 serie, e anche meno di 5 serie a settimana fanno crescere il muscolo
+   (Schoenfeld, Ogborn e Krieger 2017, J Sports Sci). Prima di eliminare un esercizio si
+   tolgono serie: gli esercizi in più, poi quelli secondari scendono a 2 serie. */
+const KEEP_LADDERS = ['core', 'hang_core', 'calf', 'calf_floor'];
 function fitDuration(slots, dur, locked) {
   const target = dur * 60; const tot = () => slots.reduce((t, s) => t + estSlot(s), 0);
+  const over = () => tot() > target + 120;
   const free = (s) => !locked[s.slot];
-  const drop = (pri) => { for (let i = slots.length - 1; i >= 0 && tot() > target + 120; i--) if (slots[i].pri === pri && free(slots[i]) && slots.length > 4) slots.splice(i, 1); };
-  drop(3);
-  // si tolgono serie prima agli esercizi meno importanti, poi agli altri
-  slots.map((s, i) => i).sort((a, b) => (slots[b].pri - slots[a].pri) || (b - a)).forEach((i) => { if (tot() > target + 120 && slots[i].sets >= 4 && free(slots[i])) slots[i].sets = 3; });
-  drop(2);
+  const keep = (s) => KEEP_LADDERS.indexOf(s.l) >= 0;
+  // dal meno importante al più importante; a parità, dall'ultimo della scheda
+  const byLeast = () => slots.map((s, i) => i).sort((a, b) => (slots[b].pri - slots[a].pri) || (b - a));
+  const trim = (min, ok) => byLeast().forEach((i) => { const s = slots[i]; while (over() && s.sets > min && free(s) && ok(s)) s.sets--; });
+  const drop = (pri) => { for (let i = slots.length - 1; i >= 0 && over(); i--) if (slots[i].pri === pri && free(slots[i]) && !keep(slots[i]) && slots.length > 4) slots.splice(i, 1); };
+  // un muscolo è "doppio" se nella stessa scheda lo allena già un altro esercizio
+  const dup = (s) => slots.some((o) => o !== s && EX[o.x].m === EX[s.x].m);
+  trim(3, () => true);                               // 1. niente esercizi oltre 3 serie
+  trim(2, (s) => s.pri >= 2 && !keep(s) && dup(s));  // 2. secondari su muscoli già allenati nella scheda
+  trim(2, (s) => s.pri >= 2 && keep(s));             //    polpacci e core
+  trim(2, (s) => s.pri >= 2);                        //    gli altri secondari
+  drop(3); drop(2);                                  // 3. solo ora si tolgono esercizi secondari
+  // 4. solo con 30 minuti: se ancora non basta, anche polpacci e core (l'ultimo della scheda)
+  for (let i = slots.length - 1; i >= 0 && over(); i--) if (keep(slots[i]) && free(slots[i]) && slots.length > 4) slots.splice(i, 1);
   if (tot() < target - 8 * 60) {
     for (let i = 0; i < slots.length; i++) {
       const s = slots[i]; if (s.pri !== 1 || !free(s) || s.sets >= 5) continue;
@@ -139,7 +154,7 @@ function resolveWorkout(wid, p, st) {
   const locked = {}; Object.keys(st.plan.over).forEach((k) => { if (st.plan.over[k].sets) locked[k] = 1; });
   const used = {};
   let tpl = W.slots;
-  if ((p.focus || 'upper') === 'upper') {
+  if ((p.focus || 'bal') === 'upper') {
     tpl = W.slots.map((s) => {
       const leg = LEG_LADDERS.indexOf(s.l) >= 0;
       if (leg) return Object.assign({}, s, { sets: Math.max(2, s.sets - 2), pri: Math.max(s.pri, 2) }); // mantenimento
@@ -290,7 +305,8 @@ function weightTrend(st) {
    Proteine 1,6–2,2 g/kg al giorno (Morton et al. 2018), circa 0,4 g/kg a pasto su 4 pasti.
    Grassi 20–35% delle calorie, il resto carboidrati. È una stima: la verità la dice la bilancia. */
 function nutriPlan(p, kg) {
-  const age = p.age || 22, male = (p.sex || 'm') === 'm';
+  if (!(p.age >= 14 && p.age <= 90) || (p.sex !== 'm' && p.sex !== 'f')) return null; // servono età e sesso inseriti dall'utente
+  const age = p.age, male = p.sex === 'm';
   const bmr = 10 * kg + 6.25 * p.height - 5 * age + (male ? 5 : -161);
   const football = (p.match && p.match.length) || (p.matchDates && p.matchDates.length) ? 0.05 : 0;
   const pal = 1.4 + 0.05 * p.wdays.length + football;

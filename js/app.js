@@ -423,7 +423,7 @@ function syncInputs(d) {
   if (v('fH') != null) d.height = n('fH');
   if (v('fW') != null) d.weight = n('fW');
   if (v('fG') != null) d.goal = n('fG');
-  if (v('fAge') != null) d.age = n('fAge');
+  if (v('fAge') != null) d.age = String(v('fAge')).trim() === '' ? null : n('fAge');
 }
 function validBody(d, withWeight) {
   if (!(d.height >= 120 && d.height <= 230)) return 'Inserisci un’altezza valida (120–230 cm)';
@@ -727,7 +727,7 @@ const A = {
   voicePick: (t) => { S.settings.voiceName = t.value; save(); say('Ciao! Scendi. Spingi. Uno. Due. Tre.', false, true); },
   voiceTest: () => { ensureAudio(); say('Serie finita. Riposa novanta secondi. Poi: squat bulgaro.', false, true); },
   newsOk: () => { S.meta.news = false; save(); closeSheet(); if (!S.meta.safety) openSheet(safetyHtml(true)); },
-  newsProfile: () => { S.meta.news = false; save(); closeSheet(); go('profile'); },
+  newsProfile: () => { S.meta.news = false; S.meta.equipCheck = false; save(); closeSheet(); go('profile'); },
 
   /* Onboarding */
   obNext: () => {
@@ -922,10 +922,10 @@ document.addEventListener('input', (ev) => {
 });
 document.addEventListener('change', (ev) => {
   const t = ev.target; if (!S.profile) return;
-  if (route === 'profile' && /^f(Name|H|G)$/.test(t.id)) {
+  if (route === 'profile' && /^f(Name|H|G|Age)$/.test(t.id)) {
     const d = clone(S.profile); syncInputs(d); const err = validBody(d, false);
     if (err) { toast(err); render(); return; }
-    S.profile.name = d.name; S.profile.height = d.height; S.profile.goal = Math.round(d.goal * 10) / 10; save(); toast('Salvato');
+    S.profile.name = d.name; S.profile.height = d.height; S.profile.goal = Math.round(d.goal * 10) / 10; S.profile.age = d.age == null ? null : Math.round(d.age); save(); toast('Salvato');
     const av = document.querySelector('.page-t .avatar'); if (av) av.textContent = initial(d.name);
   }
   if (t.id === 'voiceSel') { A.voicePick(t); return; }
@@ -952,6 +952,6 @@ if (S.profile && S.meta && !S.meta.news && !S.meta.safety) openSheet(safetyHtml(
 if (S.profile && S.meta && S.meta.news) {
   const p = S.profile;
   openSheet('<div class="letter solid" style="width:56px;height:56px;border-radius:18px;margin-bottom:16px">' + ICON.bolt + '</div><h2>Benvenuto in Leva 2.0</h2><p class="muted" style="margin:8px 0 16px">Abbiamo trasferito tutti i tuoi dati: ' + plural(S.sessions.length, 'allenamento', 'allenamenti') + ', ' + plural(S.weights.length, 'misurazione', 'misurazioni') + ' del peso e i livelli raggiunti.</p>' +
-    '<section class="card"><h4 style="margin-bottom:8px">Controlla due cose</h4><p class="small muted">Giorni: <b style="color:var(--tx)">' + p.wdays.map((i) => WD[i]).join(', ') + '</b> (prima non si sceglievano).<br>Attrezzatura: <b style="color:var(--tx)">' + EQUIP_ORDER.filter((k) => p.equip[k]).map((k) => EQUIP[k].n.toLowerCase()).join(', ') + '</b>.</p></section>' +
+    '<section class="card"><h4 style="margin-bottom:8px">Controlla due cose</h4><p class="small muted">Giorni: <b style="color:var(--tx)">' + p.wdays.map((i) => WD[i]).join(', ') + '</b> (prima non si sceglievano).<br>Attrezzatura: <b style="color:var(--tx)">' + (EQUIP_ORDER.filter((k) => p.equip[k]).map((k) => EQUIP[k].n.toLowerCase()).join(', ') || 'nessuna') + '</b>' + (S.meta.equipCheck ? ' (la vecchia versione non la chiedeva: scegli quella che hai davvero)' : '') + '.</p></section>' +
     '<button class="btn primary" data-a="newsProfile">Controlla il profilo</button><div class="sp10"></div><button class="btn ghost" data-a="newsOk">Va bene così</button>');
 }

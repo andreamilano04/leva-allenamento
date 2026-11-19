@@ -5,7 +5,7 @@
 
 const KEY = 'leva.v2';
 const KEY_V1 = 'leva.v1';
-const APP_VERSION = '3.4';
+const APP_VERSION = '3.5';
 
 function fresh() {
   return { v: 2, profile: null, prog: {}, sessions: [], weights: [], measures: [], active: null,
@@ -17,7 +17,7 @@ function defaultEquip() { return { band: false, backpack: false, chair: false, t
 
 function defaultProfile() {
   return { name: '', height: 175, weight: 65.5, goal: 70, level: 'int', obj: 'hyp', wdays: [0, 2, 4], dur: 45,
-    equip: defaultEquip(), avoid: [], excl: [], match: [], matchDates: [], focus: 'upper', age: 22, sex: 'm' };
+    equip: defaultEquip(), avoid: [], excl: [], match: [], matchDates: [], focus: 'bal', age: null, sex: null }; // età e sesso li inserisce l'utente
 }
 
 /* Converte un salvataggio v1 nel formato v2, senza perdere niente. */
@@ -28,8 +28,9 @@ function migrateV1(d) {
   s.profile = Object.assign(defaultProfile(), {
     name: p1.name || '', height: num(p1.height, 175), weight: num(p1.weight, 65.5), goal: num(p1.goal, 70),
     wdays: days === 4 ? [0, 1, 3, 4] : [0, 2, 4],
-    // La v1 usava elastico, zaino, sedia, tavolo e divano.
-    equip: Object.assign(defaultEquip(), { band: true, backpack: true, chair: true, table: true, sofa: true, step: true, bar: !!p1.bar })
+    // La v1 salvava solo la sbarra: il resto dell'attrezzatura non era mai stato confermato,
+    // quindi resta spento e l'app chiede di sceglierlo (meta.equipCheck).
+    equip: Object.assign(defaultEquip(), { bar: !!p1.bar })
   });
   const lv = (slotId, idx) => {
     const lad = V1.slotLadder[slotId]; const ids = lad && V1.levels[lad];
@@ -53,7 +54,7 @@ function migrateV1(d) {
       }).filter((e) => e.x) });
   });
   s.weights = (d.weights || []).filter((w) => w && w.d && isFinite(w.kg)).map((w) => ({ d: w.d, kg: +w.kg }));
-  s.meta = { migratedFrom: 1, migratedAt: new Date().toISOString(), news: true };
+  s.meta = { migratedFrom: 1, migratedAt: new Date().toISOString(), news: true, equipCheck: true };
   return s;
 }
 
@@ -81,6 +82,9 @@ function sanitize(d) {
     p.height = inR(p.height, 120, 230, 175); p.weight = inR(p.weight, 30, 200, 70); p.goal = inR(p.goal, 30, 200, p.weight);
     p.avoid = p.avoid.filter((z) => STRESS[z]); p.excl = p.excl.filter((x) => EX[x]);
     p.neck = !!p.neck;
+    if (p.focus !== 'upper' && p.focus !== 'bal') p.focus = 'bal';
+    p.age = isFinite(p.age) && p.age !== null && p.age >= 14 && p.age <= 90 ? Math.round(+p.age) : null;
+    if (p.sex !== 'm' && p.sex !== 'f') p.sex = null;
     p.match = (Array.isArray(p.match) ? p.match : []).filter((x) => Number.isInteger(x) && x >= 0 && x <= 6);
     p.matchDates = Array.from(new Set((Array.isArray(p.matchDates) ? p.matchDates : []).filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))).sort().slice(-200);
     Object.keys(p.equip).forEach((k) => { if (!EQUIP[k]) delete p.equip[k]; else p.equip[k] = !!p.equip[k]; });
